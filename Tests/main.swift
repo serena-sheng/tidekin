@@ -101,5 +101,18 @@ check(q.awakeMinutes == frozen, "10 秒一次的高频刷新不推进世界（\(
 q = Simulator.resolve(q, now: start.addingTimeInterval(180)).0
 check(q.awakeMinutes == frozen + 1, "跨过整分钟只推进 1 分钟（期望 \(frozen + 1) 实际 \(q.awakeMinutes)）")
 
+// 11. 通知预测：下一事件应是饥饿归零的时刻
+var n = World.newGame(at: start, tuning: t)
+n = Simulator.resolve(n, now: plus(start, 13)).0    // KOROMON, 4 心满
+check(n.stage == .baby2 && n.hunger == 4, "预测前置：BABY II 满心")
+if let ev = Schedule.nextEvent(world: n, from: n.lastResolvedAt) {
+    let minutes = Int(ev.date.timeIntervalSince(n.lastResolvedAt) / 60)
+    // 4 心 × 60 分钟 = 240 分钟；期间若跨入睡时段会推后，13:00 起不跨夜
+    let expect = 240 - n.hungerAccum
+    check(minutes == expect, "下一事件在 \(expect) 分钟后（实际 \(minutes) 分钟：\(ev.title)）")
+} else {
+    check(false, "预测应返回事件")
+}
+
 print(exitCode == 0 ? "\nALL PASS" : "\nHAS FAILURES")
 exit(exitCode)

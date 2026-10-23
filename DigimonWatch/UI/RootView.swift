@@ -49,6 +49,7 @@ struct RootView: View {
             if new == .active { store.tick() }
         }
         .task {
+            Notifier.requestPermission()
             store.tick()
             while !Task.isCancelled {
                 try? await Task.sleep(for: .seconds(10))

@@ -8,6 +8,8 @@ final class Store: ObservableObject {
     @Published var toast: String?
     @Published var showDetail = false
 
+    private var lastScheduled: Date?
+
     /// 5 个动作，与原机 A/B/C 三键的"功能层"对应
     static let actions: [(symbol: String, label: String)] = [
         ("fork.knife", "FEED"),
@@ -32,6 +34,15 @@ final class Store: ObservableObject {
         world = next
         if let last = events.last { flash(last.text) }
         if changed { Persistence.save(next) }
+        rescheduleIfNeeded()
+    }
+
+    /// 通知重排有节流：每 5 分钟最多一次，玩家动作之后强制重排。
+    func rescheduleIfNeeded(force: Bool = false) {
+        let now = Date()
+        if !force, let last = lastScheduled, now.timeIntervalSince(last) < 300 { return }
+        lastScheduled = now
+        Notifier.reschedule(for: world, now: now)
     }
 
     func perform(_ index: Int) {
@@ -44,12 +55,14 @@ final class Store: ObservableObject {
         default: showDetail = true; return
         }
         Persistence.save(world)
+        rescheduleIfNeeded(force: true)
         Haptics.tap()
     }
 
     func newGame() {
         world = .newGame(at: Date())
         Persistence.save(world)
+        rescheduleIfNeeded(force: true)
         showDetail = false
     }
 

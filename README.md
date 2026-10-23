@@ -46,9 +46,14 @@ DigimonWatch/
 2. **Tick 幂等**：同一 `now` 调两次结果一致（已验证）。
 3. **跨时段的变化必须产生 SimEvent**，UI 才能解释"你不在时发生了什么"。
 
+## 通知
+
+`Core/Schedule.swift` 前向预测"下一个值得叫醒你的时刻"（饥饿归零 / 力量归零 / 进化 / 孵化），`Core/Notifier.swift` 据此只保留**一条**待发通知，每次结算后重排——watchOS 待发配额紧张，不能一次排满。
+
+重排有 5 分钟节流；喂食、训练、新建之后强制重排，否则提醒还指向旧状态。
+
 ## 尚未实现（按优先级）
 
-1. **通知**：Call 目前只在 app 内显示，离开 app 就静默。需要 `UNUserNotificationCenter` 排下一个事件（滚动续排，单个）。
-2. **战斗**：Ver.1 的 Perfect 阶段要求 `battles ≥ 15 且胜率 ≥ 40%`，判定已写好，但没有战斗界面与命中率模型。
+1. **战斗**：Ver.1 的 Perfect 阶段要求 `battles ≥ 15 且胜率 ≥ 40%`，判定已写好，但没有战斗界面与命中率模型。
 3. **Complication**：App Group 容器已就位，缺 WidgetKit extension。
 4. **音效 / 触感细化**：只有 click 一种反馈。
