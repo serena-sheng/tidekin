@@ -6,11 +6,8 @@ import UIKit
 /// 这些是 Bandai 的版权素材，只在个人复刻项目里本地使用，不要随包分发或公开再发布。
 enum SpriteStore {
     /// 物种名 → 资源名。缺图的用同族顶替，并在注释里标出来。
-    private static let aliases: [String: String] = [
-        "DIGITAMA": "digitama",
-        // MetalGreymon 在 Wikimon 上没找到 dmc 版，暂用 Greymon 顶替
-        "METALGREYMON": "greymon",
-    ]
+    /// 现在 15 张全部自绘，不再需要顶替映射。
+    private static let aliases: [String: String] = [:]
 
     private static var cache: [String: UIImage] = [:]
 

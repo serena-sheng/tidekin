@@ -78,14 +78,21 @@ Key 存 Keychain（不是 UserDefaults，手表会同步到 iCloud）。
 
 ## 美术资源
 
-精灵来自 Wikimon 图库的 `<Name>_vpet_dmc.gif`（Digital Monster Color 官方彩色版，48×48，按 3 倍最近邻还原成 16×16），放在 `DigimonWatch/Resources/Sprites/`。
+**15 张精灵全部自绘**，不含任何官方像素。源码在 `Art/build.py`（字符矩阵 + 统一调色板 + 行宽校验），跑 `python3 Art/build.py` 重新生成到 `Resources/Sprites/`。
 
-- 11 只官方图完整可用（Agumon / Betamon / Greymon / Tyranomon / Devimon / Meramon / Airdramon / Seadramon / Numemon / Koromon / Monzaemon）
-- **Botamon、Mamemon 的官方图缺下半，是自绘的**（配色抄官方）
-- **MetalGreymon 缺图**，暂时用 Greymon 顶替
-- 渲染：`SpriteStore` 把透明留白按 alpha 包围盒裁掉再放回中央（官方图的留白不对称），只平移不缩放——小兽就该小
+风格参照 Digital Monster Color 的 16×16 彩色语言：1px 暗轮廓、左上 45° 光源、每种材质独立 3 级色阶、不用抗锯齿、不用抖动。颜色系沿用（黄/橙/绿/蓝/紫黑），造型原创。
 
-⚠️ 官方精灵是 Bandai 版权素材，只在本地个人复刻中使用，不随包分发或公开再发布。规范见 vault 的 `16x16数码兽像素规范`。
+规范见 vault 的 `16x16数码兽像素规范`。
+
+### 已知不足
+
+造型的可识别性还没到位。16×16 上表达"生物结构"靠两件事，目前只做到一半：
+
+- ✅ 每个部件有亮/暗面
+- ❌ **部件之间的深缝**（官方用近黑色分隔头/身/四肢，是唯一能表达结构的手段）
+- ❌ **剪影的突出物**（角、耳、爪、尾——没有这些就只是一个色块）
+
+Agumon 和 Greymon 的剪影还不够"恐龙"，需要再迭代 2–3 轮。
 
 ## 通知
 
