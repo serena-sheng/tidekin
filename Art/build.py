@@ -349,6 +349,21 @@ def validate():
     return problems
 
 
+EYE_COLORS = {"Y", "R"}
+
+
+def blink_rows(rows):
+    """眨眼帧：把眼睛像素换成该兽用得最多的身体色。
+    比整体位移更像"活着"，而且不需要为每只兽重画第二帧。"""
+    counts = {}
+    for row in rows:
+        for ch in row:
+            if ch not in ("." , "k", "K"):
+                counts[ch] = counts.get(ch, 0) + 1
+    body = max((c for c in counts if c not in EYE_COLORS), key=lambda c: counts[c], default="k")
+    return ["".join(body if ch in EYE_COLORS else ch for ch in row) for row in rows]
+
+
 def main():
     out = os.path.join(os.path.dirname(__file__), "..",
                        "DigimonWatch", "Resources", "Sprites")
@@ -368,6 +383,13 @@ def main():
             for x, ch in enumerate(row):
                 px[x, y] = C[ch]
         im.save(os.path.join(out, f"{name}.png"))
+
+        blink = Image.new("RGBA", (16, 16), (0, 0, 0, 0))
+        bp = blink.load()
+        for y, row in enumerate(blink_rows(rows)):
+            for x, ch in enumerate(row):
+                bp[x, y] = C[ch]
+        blink.save(os.path.join(out, f"{name}_b.png"))
     print(f"wrote {len(ROWS)} sprites to {out}")
 
 

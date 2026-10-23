@@ -11,8 +11,9 @@ enum SpriteStore {
 
     private static var cache: [String: UIImage] = [:]
 
-    static func image(for species: String) -> UIImage? {
-        let key = aliases[species] ?? species.lowercased()
+    static func image(for species: String, blink: Bool = false) -> UIImage? {
+        let base = aliases[species] ?? species.lowercased()
+        let key = blink ? base + "_b" : base
         if let hit = cache[key] { return hit }
         guard let raw = load(key) else { return nil }
         let canvas = centerOnCanvas(raw) ?? raw

@@ -26,11 +26,20 @@ struct LCDView: View {
                     .fill(Color.black)
 
                 // 像素画要求网格＝像素格；这里不画假网格，让精灵自己承担结构
-                if let bitmap {
-                    Image(uiImage: bitmap)
-                        .resizable()
-                        .interpolation(.none)
-                        .scaledToFit()
+                if bitmap != nil, !world.isDead {
+                    // 眨眼：每 4 秒闭眼 0.2 秒。原版每隔几秒也会动一下，
+                    // 静止的宠物看起来像截图而不是活物。
+                    TimelineView(.periodic(from: .now, by: 0.1)) { context in
+                        let phase = context.date.timeIntervalSinceReferenceDate
+                            .truncatingRemainder(dividingBy: 4.0)
+                        let blinking = !world.isAsleep && phase < 0.2
+                        if let img = SpriteStore.image(for: world.species, blink: blinking) {
+                            Image(uiImage: img)
+                                .resizable()
+                                .interpolation(.none)
+                                .scaledToFit()
+                        }
+                    }
                         
                 } else {
                     Canvas { ctx, _ in

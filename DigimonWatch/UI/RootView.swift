@@ -45,11 +45,11 @@ struct RootView: View {
     // MARK: - 主屏
 
     private var mainScreen: some View {
-        VStack(spacing: 4) {
-            header
-            lcd
-            meters
-            actionBar
+        VStack(spacing: Grid.gap) {
+            header.frame(height: Grid.rowHeader, alignment: .top)
+            lcd.frame(height: Grid.rowScreen)
+            meters.frame(height: Grid.rowMeters, alignment: .center)
+            actionBar.frame(height: Grid.rowActions)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .padding(.horizontal, 6)
@@ -165,12 +165,12 @@ struct RootView: View {
 
     /// 六格位置永远固定，只换视觉：选中是描边，推荐是底色。
     private var actionBar: some View {
-        HStack(spacing: 3) {
+        HStack(spacing: 0) {
             ForEach(Array(Store.actions.enumerated()), id: \.offset) { index, action in
                 cell(index: index, symbol: action.symbol)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
         }
-        .padding(.top, 1)
     }
 
     private func cell(index: Int, symbol: String) -> some View {
@@ -179,24 +179,24 @@ struct RootView: View {
         let dimmed = store.actionsDisabled
 
         let iconColor: Color = dimmed ? Theme.lcdDim
-            : demanded ? Theme.lcd
-            : selected ? Theme.ink
+            : (selected || demanded) ? Theme.lcd
             : Theme.ink.opacity(0.55)
 
+        // 选中用底部实心条 + 极淡底，不用整块绿：整块会把视线从宠物身上抢走
+        let fieldColor: Color = demanded ? Theme.lcd.opacity(0.16)
+            : selected ? Theme.ink.opacity(0.06)
+            : .clear
+
         return Image(systemName: symbol)
-            .font(.system(size: selected ? 14 : 12, weight: .semibold))
+            .font(.system(size: selected ? 15 : 13, weight: .semibold))
             .foregroundStyle(iconColor)
-            .frame(width: 25, height: 23)
-            .background(
-                RoundedRectangle(cornerRadius: 7, style: .continuous)
-                    .fill(demanded ? Theme.lcd.opacity(0.2)
-                          : selected ? Theme.ink.opacity(0.08)
-                          : Theme.panel)
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: 7, style: .continuous)
-                    .strokeBorder(selected ? Theme.lcd : .clear, lineWidth: 1)
-            )
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .background(Rectangle().fill(fieldColor))
+            .overlay(alignment: .bottom) {
+                Rectangle()
+                    .fill(selected ? Theme.lcd : .clear)
+                    .frame(height: 2)
+            }
             .onTapGesture {
                 store.selection = index
                 store.noteCrownMove()
