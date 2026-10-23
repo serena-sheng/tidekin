@@ -76,6 +76,17 @@ DeepSeek 官方只有 `GET /user/balance` 查余额，没有 token 用量查询�
 
 Key 存 Keychain（不是 UserDefaults，手表会同步到 iCloud）。
 
+## 美术资源
+
+精灵来自 Wikimon 图库的 `<Name>_vpet_dmc.gif`（Digital Monster Color 官方彩色版，48×48，按 3 倍最近邻还原成 16×16），放在 `DigimonWatch/Resources/Sprites/`。
+
+- 11 只官方图完整可用（Agumon / Betamon / Greymon / Tyranomon / Devimon / Meramon / Airdramon / Seadramon / Numemon / Koromon / Monzaemon）
+- **Botamon、Mamemon 的官方图缺下半，是自绘的**（配色抄官方）
+- **MetalGreymon 缺图**，暂时用 Greymon 顶替
+- 渲染：`SpriteStore` 把透明留白按 alpha 包围盒裁掉再放回中央（官方图的留白不对称），只平移不缩放——小兽就该小
+
+⚠️ 官方精灵是 Bandai 版权素材，只在本地个人复刻中使用，不随包分发或公开再发布。规范见 vault 的 `16x16数码兽像素规范`。
+
 ## 通知
 
 `Core/Schedule.swift` 前向预测"下一个值得叫醒你的时刻"（饥饿归零 / 力量归零 / 进化 / 孵化），`Core/Notifier.swift` 据此只保留**一条**待发通知，每次结算后重排——watchOS 待发配额紧张，不能一次排满。
