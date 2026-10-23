@@ -13,7 +13,12 @@ enum SpriteStore {
 
     static func image(for species: String, blink: Bool = false) -> UIImage? {
         let base = aliases[species] ?? species.lowercased()
+        // 32×32 版本优先；没有的物种回落到 16×16
         let key = blink ? base + "_b" : base
+        let key32 = base + "32" + (blink ? "_b" : "")
+        if let hit = cache[key32] { return hit }
+        if let big = load(key32) { cache[key32] = big; return big }
+
         if let hit = cache[key] { return hit }
         guard let raw = load(key) else { return nil }
         let canvas = centerOnCanvas(raw) ?? raw

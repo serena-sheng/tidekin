@@ -18,9 +18,7 @@ struct LCDView: View {
 
     var body: some View {
         ZStack {
-            RoundedRectangle(cornerRadius: Grid.cardRadius, style: .continuous)
-                .fill(world.isDead ? AnyShapeStyle(Theme.panel) : AnyShapeStyle(Theme.cardFill))
-
+            // 不再有卡片底：宠物直接站在黑底上
             VStack(spacing: 0) {
                 Spacer(minLength: 0)
                 sprite
@@ -29,7 +27,7 @@ struct LCDView: View {
                     meters
                 }
             }
-            .padding(Grid.cardPadding)
+
         }
     }
 

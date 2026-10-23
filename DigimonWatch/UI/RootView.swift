@@ -82,19 +82,17 @@ struct CompanionPage: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .animation(.easeOut(duration: 0.18), value: store.world.headline)
 
-            LCDView(world: store.world, showMeters: false, spriteMax: 140)
-                .frame(maxHeight: .infinity)
-                .padding(.top, 7)
+            LCDView(world: store.world, showMeters: false, spriteMax: 200)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .contentShape(Rectangle())
                 .onTapGesture { store.tapCreature() }
 
             actionBar
-                .padding(.top, 9)
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-        .padding(.horizontal, Grid.margin)
-        .padding(.top, 2)
-        .padding(.bottom, 2)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .padding(.horizontal, 8)
+        .ignoresSafeArea(edges: .bottom)
+        .padding(.bottom, 8)
     }
 
     private var headlineColor: Color {
