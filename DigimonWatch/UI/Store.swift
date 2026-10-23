@@ -1,5 +1,6 @@
 import Foundation
 import SwiftUI
+import WatchKit
 
 @MainActor
 final class Store: ObservableObject {
@@ -7,16 +8,22 @@ final class Store: ObservableObject {
     @Published var selection: Int = 0
     @Published var toast: String?
     @Published var showDetail = false
+    @Published var showChat = false
+
+    // 聊天
+    @Published var chatLog: [(role: String, text: String)] = []
+    @Published var isThinking = false
+    @Published var chatError: String?
 
     private var lastScheduled: Date?
 
-    /// 5 个动作，与原机 A/B/C 三键的"功能层"对应
     static let actions: [(symbol: String, label: String)] = [
         ("fork.knife", "FEED"),
         ("figure.strengthtraining.traditional", "TRAIN"),
         ("trash", "CLEAN"),
         ("cross.case", "HEAL"),
-        ("info.circle", "INFO"),
+        ("bubble.left.and.bubble.right", "TALK"),
+        ("chart.bar", "STATS"),
     ]
 
     init() {
@@ -27,7 +34,8 @@ final class Store: ObservableObject {
         }
     }
 
-    /// 唯一的世界推进入口。幂等，重复调用安全。
+    // MARK: - 世界推进
+
     func tick() {
         let (next, events) = Simulator.resolve(world, now: Date())
         let changed = next.lastResolvedAt != world.lastResolvedAt || next.log.count != world.log.count
@@ -37,14 +45,6 @@ final class Store: ObservableObject {
         rescheduleIfNeeded()
     }
 
-    /// 通知重排有节流：每 5 分钟最多一次，玩家动作之后强制重排。
-    func rescheduleIfNeeded(force: Bool = false) {
-        let now = Date()
-        if !force, let last = lastScheduled, now.timeIntervalSince(last) < 300 { return }
-        lastScheduled = now
-        Notifier.reschedule(for: world, now: now)
-    }
-
     func perform(_ index: Int) {
         let now = Date()
         switch index {
@@ -52,11 +52,109 @@ final class Store: ObservableObject {
         case 1: world = Simulator.train(world, at: now)
         case 2: world = Simulator.clean(world, at: now)
         case 3: world = Simulator.heal(world, at: now)
+        case 4: showChat = true; return
         default: showDetail = true; return
         }
         Persistence.save(world)
         rescheduleIfNeeded(force: true)
         Haptics.tap()
+    }
+
+    func rescheduleIfNeeded(force: Bool = false) {
+        let now = Date()
+        if !force, let last = lastScheduled, now.timeIntervalSince(last) < 300 { return }
+        lastScheduled = now
+        Notifier.reschedule(for: world, now: now)
+    }
+
+    // MARK: - 健康线
+
+    private var stepsKey: String { "health.steps.\(Calendar.current.startOfDay(for: Date()).timeIntervalSince1970)" }
+
+    func syncHealth() async {
+        guard HealthSource.isAvailable else { return }
+        let steps = await HealthSource.stepsToday()
+        let recorded = UserDefaults.standard.integer(forKey: stepsKey)
+        let delta = steps - recorded
+        guard delta > 0 else { return }
+        UserDefaults.standard.set(steps, forKey: stepsKey)
+
+        let (next, events) = Simulator.applyHealth(world, steps: delta, at: Date())
+        world = next
+        Persistence.save(next)
+        rescheduleIfNeeded(force: true)
+        if let last = events.last { flash(last.event.text) }
+    }
+
+    // MARK: - Token 线
+
+    func syncTokens() async {
+        let endpoint = UserDefaults.standard.string(forKey: "drive.token.endpoint") ?? ""
+        guard !endpoint.isEmpty else { return }
+        do {
+            let delta = try await TokenLedger.pullDelta(
+                endpoint: endpoint,
+                secret: Keychain.get(Keychain.tokenEndpointSecret)
+            )
+            guard delta > 0 else { return }
+            applyTokenDelta(delta)
+        } catch {
+            chatError = error.localizedDescription
+        }
+    }
+
+    func recordTokensManually(_ total: Int) {
+        let delta = TokenLedger.recordManual(total: total)
+        guard delta > 0 else { return }
+        applyTokenDelta(delta)
+    }
+
+    private func applyTokenDelta(_ delta: Int) {
+        let (next, events) = Simulator.applyTokens(world, tokens: delta, at: Date())
+        world = next
+        Persistence.save(next)
+        rescheduleIfNeeded(force: true)
+        if let last = events.last { flash(last.event.text) }
+    }
+
+    // MARK: - 对话
+
+    func ask(_ text: String) async {
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty, !isThinking else { return }
+        guard let key = Keychain.get(Keychain.deepSeekKey), !key.isEmpty else {
+            chatError = "先在设置里填 DeepSeek API Key"
+            return
+        }
+
+        chatLog.append((role: "user", text: trimmed))
+        isThinking = true
+        chatError = nil
+
+        var messages: [DeepSeekClient.Message] = [
+            DeepSeekClient.persona(for: world)
+        ]
+        // 只带最近 6 轮，手表屏幕小、token 也省
+        for entry in chatLog.suffix(6) {
+            messages.append(.init(role: entry.role, content: entry.text))
+        }
+
+        do {
+            let reply = try await DeepSeekClient(apiKey: key).chat(messages)
+            chatLog.append((role: "assistant", text: reply.text))
+            // 闭环：跟它说话本身就消耗 token，本身就会喂它
+            if reply.tokens > 0 { applyTokenDelta(reply.tokens) }
+        } catch {
+            chatError = error.localizedDescription
+        }
+        isThinking = false
+    }
+
+    // MARK: -
+
+    func updateWeights(_ weights: Tuning.DriveWeights) {
+        world.tuning.weights = weights
+        Persistence.save(world)
     }
 
     func newGame() {
@@ -76,10 +174,6 @@ final class Store: ObservableObject {
 }
 
 enum Haptics {
-    static func tap() {
-        WKInterfaceDevice.current().play(.click)
-    }
-    static func chime() {
-        WKInterfaceDevice.current().play(.success)
-    }
+    static func tap() { WKInterfaceDevice.current().play(.click) }
+    static func chime() { WKInterfaceDevice.current().play(.success) }
 }

@@ -49,8 +49,9 @@ struct RootView: View {
             if new == .active { store.tick() }
         }
         .task {
-            Notifier.requestPermission()
             store.tick()
+            await store.syncHealth()
+            await store.syncTokens()
             while !Task.isCancelled {
                 try? await Task.sleep(for: .seconds(10))
                 store.tick()
@@ -58,6 +59,9 @@ struct RootView: View {
         }
         .sheet(isPresented: $store.showDetail) {
             DetailView(store: store)
+        }
+        .sheet(isPresented: $store.showChat) {
+            NavigationStack { ChatView(store: store) }
         }
     }
 
@@ -95,13 +99,13 @@ struct RootView: View {
     }
 
     private var actionBar: some View {
-        HStack(spacing: 4) {
+        HStack(spacing: 3) {
             ForEach(Array(Store.actions.enumerated()), id: \.offset) { index, action in
                 let selected = index == store.selection
                 Image(systemName: action.symbol)
                     .font(.system(size: selected ? 15 : 12, weight: .semibold))
                     .foregroundStyle(selected ? Color.black : Theme.ink.opacity(0.5))
-                    .frame(width: 30, height: 26)
+                    .frame(width: 25, height: 24)
                     .background(
                         RoundedRectangle(cornerRadius: 7, style: .continuous)
                             .fill(selected ? Theme.lcd : Theme.panel)
@@ -118,6 +122,7 @@ struct RootView: View {
 
 struct DetailView: View {
     @ObservedObject var store: Store
+    @State private var askedNotifications = false
 
     var body: some View {
         ScrollView {
@@ -140,12 +145,23 @@ struct DetailView: View {
                 row("OVRF", "\(store.world.overfeed)")
                 row("WKDN", "\(store.world.sleepDisturb)")
 
+                NavigationLink("SETUP") { SettingsView(store: store) }
+                    .font(.system(size: 10, weight: .bold, design: .monospaced))
+                    .tint(Theme.lcd)
+
                 Button("NEW EGG") { store.newGame() }
                     .buttonStyle(.bordered)
                     .tint(Theme.danger)
                     .padding(.top, 4)
             }
             .padding(.horizontal, 4)
+        }
+        .onAppear {
+            // 进详情页才要通知权限：先让用户看到宠物，再谈提醒
+            if !askedNotifications {
+                askedNotifications = true
+                Notifier.requestPermission()
+            }
         }
     }
 
