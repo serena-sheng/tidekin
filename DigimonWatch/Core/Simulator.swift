@@ -26,6 +26,18 @@ enum SimEvent: Equatable {
     }
 }
 
+/// 带发生时刻的事件。结算是在事后批量补算的，
+/// 所以每个事件的真实时刻必须单独带上，不能统一盖成"你打开 app 的那一刻"。
+struct TimedEvent: Equatable {
+    let date: Date
+    let event: SimEvent
+
+    init(_ date: Date, _ event: SimEvent) {
+        self.date = date
+        self.event = event
+    }
+}
+
 /// 时间结算内核。纯函数：同样的 (world, now) 永远得到同样的结果。
 enum Simulator {
 
@@ -38,9 +50,9 @@ enum Simulator {
     }
 
     /// 把 world 推进到 now。逐分钟推进，睡眠时暂停一切衰减与进化计时。
-    static func resolve(_ input: World, now: Date) -> (World, [SimEvent]) {
+    static func resolve(_ input: World, now: Date) -> (World, [TimedEvent]) {
         var w = input
-        var events: [SimEvent] = []
+        var events: [TimedEvent] = []
 
         guard !w.isDead, now > w.lastResolvedAt else { return (w, events) }
 
@@ -61,7 +73,7 @@ enum Simulator {
             let shouldSleep = isSleepHour(t, tuning: w.tuning)
             if shouldSleep != w.isAsleep {
                 w.isAsleep = shouldSleep
-                events.append(shouldSleep ? .fellAsleep : .wokeUp)
+                events.append(TimedEvent(t, shouldSleep ? .fellAsleep : .wokeUp))
                 if shouldSleep { w.poopAccum = 0 }
             }
 
@@ -86,11 +98,11 @@ enum Simulator {
                 if w.poopAccum >= w.tuning.poopMinutes {
                     w.poopAccum = 0
                     w.poop += 1
-                    events.append(.pooped)
+                    events.append(TimedEvent(t, .pooped))
                     if w.poop > w.tuning.maxPoop && !w.poopingInjuredThisCycle {
                         w.poopingInjuredThisCycle = true
                         w.injured += 1
-                        events.append(.injured)
+                        events.append(TimedEvent(t, .injured))
                     }
                 }
 
@@ -124,13 +136,13 @@ enum Simulator {
                 w.callKind = .none
                 w.callStartedAt = nil
                 w.callPenalized = false
-                events.append(.evolved(from: from, to: to))
+                events.append(TimedEvent(t, .evolved(from: from, to: to)))
             }
 
             // 死亡
             if w.injured >= w.tuning.maxInjury {
                 w.isDead = true
-                events.append(.died)
+                events.append(TimedEvent(t, .died))
                 break
             }
         }
@@ -138,7 +150,7 @@ enum Simulator {
         // 停在已消费的分钟边界，余量留给下一次结算
         w.lastResolvedAt = w.isDead ? now : t
         for e in events {
-            w.log.append(LogEntry(at: now, text: e.text))
+            w.log.append(LogEntry(at: e.date, text: e.event.text))
         }
         if w.log.count > 40 { w.log = Array(w.log.suffix(40)) }
         return (w, events)
@@ -146,7 +158,7 @@ enum Simulator {
 
     // MARK: -
 
-    private static func updateCall(_ w: inout World, at t: Date, events: inout [SimEvent]) {
+    private static func updateCall(_ w: inout World, at t: Date, events: inout [TimedEvent]) {
         guard w.stage != .egg, !w.isAsleep else {
             w.callKind = .none
             w.callStartedAt = nil
@@ -169,7 +181,7 @@ enum Simulator {
             w.callKind = kind
             w.callStartedAt = t
             w.callPenalized = false
-            events.append(.called)
+            events.append(TimedEvent(t, .called))
             return
         }
 
@@ -179,7 +191,7 @@ enum Simulator {
            t.timeIntervalSince(started) >= Double(w.tuning.callWindowMinutes * 60) {
             w.callPenalized = true
             w.careMistakes += 1
-            events.append(.careMistake)
+            events.append(TimedEvent(t, .careMistake))
         }
     }
 

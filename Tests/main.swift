@@ -114,5 +114,18 @@ if let ev = Schedule.nextEvent(world: n, from: n.lastResolvedAt) {
     check(false, "预测应返回事件")
 }
 
+// 12. 事件时间戳必须是发生时刻，而不是批量结算的时刻
+var e = World.newGame(at: start, tuning: t)
+let (e1, evs1) = Simulator.resolve(e, now: plus(start, 1))
+if let first = evs1.first {
+    let delta = first.date.timeIntervalSince(plus(start, 1))
+    check(abs(delta) < 0.001, "孵化事件戳在发生的那一分钟（偏差 \(delta) 秒，事件 \(first.event.text)）")
+} else {
+    check(false, "应产生孵化事件")
+}
+let (_, evs2) = Simulator.resolve(e1, now: plus(start, 400))
+check(evs2.allSatisfy { $0.date <= plus(start, 400) }, "所有事件戳不晚于结算时刻")
+check(evs2.contains { $0.date < plus(start, 400) }, "长跨度结算后事件戳仍保留真实时刻")
+
 print(exitCode == 0 ? "\nALL PASS" : "\nHAS FAILURES")
 exit(exitCode)

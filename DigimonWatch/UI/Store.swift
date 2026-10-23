@@ -32,7 +32,7 @@ final class Store: ObservableObject {
         let (next, events) = Simulator.resolve(world, now: Date())
         let changed = next.lastResolvedAt != world.lastResolvedAt || next.log.count != world.log.count
         world = next
-        if let last = events.last { flash(last.text) }
+        if let last = events.last { flash(last.event.text) }
         if changed { Persistence.save(next) }
         rescheduleIfNeeded()
     }
