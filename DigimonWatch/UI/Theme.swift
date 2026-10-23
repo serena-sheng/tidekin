@@ -26,8 +26,8 @@ enum Grid {
 
     // 纵向行高，加起来必须 ≤ 可用高度（242 - 状态栏)
     static let rowHeader: CGFloat = 30
-    static let rowScreen: CGFloat = 100
-    static let rowMeters: CGFloat = 20
+    static let rowScreen: CGFloat = 96
+    static let rowMeters: CGFloat = 24
     static let rowActions: CGFloat = 32
 
     /// 6 列里占几列的宽度

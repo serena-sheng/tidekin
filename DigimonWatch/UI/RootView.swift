@@ -158,7 +158,7 @@ struct RootView: View {
             }
             .frame(height: 22)
         } else {
-            VStack(spacing: 1) {
+            VStack(spacing: 4) {
                 SegmentMeter(glyph: "♥", value: store.world.hunger, maxValue: store.world.maxHearts)
                 SegmentMeter(glyph: "⚡", value: store.world.strength, maxValue: store.world.maxHearts)
             }
