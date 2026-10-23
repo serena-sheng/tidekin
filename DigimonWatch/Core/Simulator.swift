@@ -78,8 +78,9 @@ enum Simulator {
             }
 
             if w.stage == .egg {
-                // 蛋只需要孵化计时，不吃不拉
-                w.awakeMinutes += 1
+                // 蛋只需孵化计时，不吃不拉。孵化不受权重影响——
+                // 关掉时间线是为了不让时间推动进化，不是为了永远孵不出来。
+                w.driveMinutes += 1.0
             } else if !w.isAsleep {
                 // 掉心
                 w.hungerAccum += 1
@@ -107,37 +108,14 @@ enum Simulator {
                 }
 
                 // 进化计时（只在清醒时走）
-                w.awakeMinutes += 1
+                w.driveMinutes += w.tuning.weights.time
             }
 
             // Call 与失误
             updateCall(&w, at: t, events: &events)
 
             // 进化
-            if let need = Evolution.thresholdMinutes(for: w.stage, tuning: w.tuning),
-               w.awakeMinutes >= need,
-               let next = w.stage.next,
-               Evolution.isEligible(for: next, from: w) {
-                let from = w.species
-                let to = Evolution.species(for: next, from: w)
-                w.stage = next
-                w.species = to
-                w.stageStartedAt = t
-                w.awakeMinutes = 0
-                w.hunger = next.maxHearts
-                w.strength = next.maxHearts
-                w.hungerAccum = 0
-                w.strengthAccum = 0
-                w.careMistakes = 0
-                w.sleepDisturb = 0
-                w.overfeed = 0
-                w.trainCount = 0
-                w.effort = 0
-                w.callKind = .none
-                w.callStartedAt = nil
-                w.callPenalized = false
-                events.append(TimedEvent(t, .evolved(from: from, to: to)))
-            }
+            checkEvolution(&w, at: t, events: &events)
 
             // 死亡
             if w.injured >= w.tuning.maxInjury {
@@ -193,6 +171,86 @@ enum Simulator {
             w.careMistakes += 1
             events.append(TimedEvent(t, .careMistake))
         }
+    }
+
+    /// 单一进化判定入口。时间线每走一分钟调它，健康/token 上报后也调它。
+    private static func checkEvolution(_ w: inout World, at t: Date, events: inout [TimedEvent]) {
+        guard let need = Evolution.thresholdMinutes(for: w.stage, tuning: w.tuning),
+              w.driveMinutes >= Double(need),
+              let next = w.stage.next,
+              Evolution.isEligible(for: next, from: w) else { return }
+
+        let from = w.species
+        let to = Evolution.species(for: next, from: w)
+        w.stage = next
+        w.species = to
+        w.stageStartedAt = t
+        w.driveMinutes = 0
+        w.hunger = next.maxHearts
+        w.strength = next.maxHearts
+        w.hungerAccum = 0
+        w.strengthAccum = 0
+        w.healthStrengthAccum = 0
+        w.tokenEffortAccum = 0
+        w.careMistakes = 0
+        w.sleepDisturb = 0
+        w.overfeed = 0
+        w.trainCount = 0
+        w.effort = 0
+        w.callKind = .none
+        w.callStartedAt = nil
+        w.callPenalized = false
+        events.append(TimedEvent(t, .evolved(from: from, to: to)))
+    }
+
+    // MARK: - 另外两条驱动线
+
+    /// 健康线：把步数折成驱动分钟，并按每 N 驱动分钟补一颗力量心。
+    /// 只认增量；重复上报同一批步数会重复计入，调用方负责去重。
+    static func applyHealth(_ input: World, steps: Int, at now: Date) -> (World, [TimedEvent]) {
+        var w = resolve(input, now: now).0
+        var events: [TimedEvent] = []
+        guard steps > 0, !w.isDead, w.stage != .egg else { return (w, events) }
+
+        w.totalSteps += steps
+        let units = Double(steps) / max(1, w.tuning.stepsPerDriveMinute)
+        let driven = units * w.tuning.weights.health
+        w.driveMinutes += driven
+
+        w.healthStrengthAccum += driven
+        let per = max(1, w.tuning.healthStrengthPerDriveMinute)
+        while w.healthStrengthAccum >= per && w.strength < w.maxHearts {
+            w.healthStrengthAccum -= per
+            w.strength += 1
+            clearCallIfSatisfied(&w)
+        }
+
+        checkEvolution(&w, at: now, events: &events)
+        if let last = events.last { w.log.append(LogEntry(at: last.date, text: last.event.text)) }
+        return (w, events)
+    }
+
+    /// Token 线：把 token 折成驱动分钟，并按比例补努力值。
+    static func applyTokens(_ input: World, tokens: Int, at now: Date) -> (World, [TimedEvent]) {
+        var w = resolve(input, now: now).0
+        var events: [TimedEvent] = []
+        guard tokens > 0, !w.isDead, w.stage != .egg else { return (w, events) }
+
+        w.totalTokens += tokens
+        let units = Double(tokens) / max(1, w.tuning.tokensPerDriveMinute)
+        let driven = units * w.tuning.weights.token
+        w.driveMinutes += driven
+
+        w.tokenEffortAccum += driven
+        let per = max(1, w.tuning.tokenEffortPerDriveMinute)
+        while w.tokenEffortAccum >= per && w.effort < Double(w.maxHearts) {
+            w.tokenEffortAccum -= per
+            w.effort = min(Double(w.maxHearts), w.effort + 0.05)
+        }
+
+        checkEvolution(&w, at: now, events: &events)
+        if let last = events.last { w.log.append(LogEntry(at: last.date, text: last.event.text)) }
+        return (w, events)
     }
 
     // MARK: - 玩家动作

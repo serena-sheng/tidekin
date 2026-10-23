@@ -41,16 +41,16 @@ check(w.careMistakes == 0, "进化后失误清零（\(w.careMistakes)）")
 // 5. 幂等
 let a = Simulator.resolve(w, now: plus(start, 60 * 7)).0
 let b = Simulator.resolve(a, now: plus(start, 60 * 7)).0
-check(a.hunger == b.hunger && a.awakeMinutes == b.awakeMinutes, "同一时刻重复结算结果一致")
+check(a.hunger == b.hunger && a.driveMinutes == b.driveMinutes, "同一时刻重复结算结果一致")
 
 // 6. 睡眠暂停
 var s = World.newGame(at: start, tuning: t)
 s = Simulator.resolve(s, now: plus(start, 20)).0
-let before = s.awakeMinutes
+let before = s.driveMinutes
 s = Simulator.resolve(s, now: date(23, 23, 30)).0
 check(s.isAsleep, "23:30 处于睡眠")
 let woke = Simulator.resolve(s, now: date(24, 7, 30)).0
-check(woke.awakeMinutes < 15 * 60, "睡眠的 8 小时没有计入进化计时（睡眠前 \(before) 分 → 醒后 \(woke.awakeMinutes) 分）")
+check(woke.driveMinutes < 15 * 60, "睡眠的 8 小时没有计入进化计时（睡眠前 \(before) 分 → 醒后 \(woke.driveMinutes) 分）")
 
 // 7. 精心照料 → 0 失误 → AGUMON
 var c = World.newGame(at: start, tuning: t)
@@ -92,14 +92,14 @@ check(p.stage == .adult, "无战斗积累不推进 PERFECT（\(p.stage.display)�
 // 10. 回归：高频刷新不能把世界跑快
 var q = World.newGame(at: start, tuning: t)
 q = Simulator.resolve(q, now: plus(start, 2)).0
-let frozen = q.awakeMinutes
+let frozen = q.driveMinutes
 for i in 1...5 {
     q = Simulator.resolve(q, now: start.addingTimeInterval(120 + Double(i) * 10)).0
 }
-check(q.awakeMinutes == frozen, "10 秒一次的高频刷新不推进世界（\(frozen) → \(q.awakeMinutes)）")
+check(q.driveMinutes == frozen, "10 秒一次的高频刷新不推进世界（\(frozen) → \(q.driveMinutes)）")
 // 再补足到 60 秒，应该只推进 1 分钟
 q = Simulator.resolve(q, now: start.addingTimeInterval(180)).0
-check(q.awakeMinutes == frozen + 1, "跨过整分钟只推进 1 分钟（期望 \(frozen + 1) 实际 \(q.awakeMinutes)）")
+check(q.driveMinutes == frozen + 1, "跨过整分钟只推进 1 分钟（期望 \(frozen + 1) 实际 \(q.driveMinutes)）")
 
 // 11. 通知预测：下一事件应是饥饿归零的时刻
 var n = World.newGame(at: start, tuning: t)
@@ -126,6 +126,35 @@ if let first = evs1.first {
 let (_, evs2) = Simulator.resolve(e1, now: plus(start, 400))
 check(evs2.allSatisfy { $0.date <= plus(start, 400) }, "所有事件戳不晚于结算时刻")
 check(evs2.contains { $0.date < plus(start, 400) }, "长跨度结算后事件戳仍保留真实时刻")
+
+// 13-16. 三线驱动
+var ht = Tuning()
+ht.weights = .init(time: 0, health: 1, token: 0)
+var h = World.newGame(at: start, tuning: ht)
+h = Simulator.resolve(h, now: plus(start, 2)).0
+check(h.stage == .baby1, "时间权重 0 时，孵化前仍需时间（\(h.stage.display)）")
+h.driveMinutes = 0
+let (h2, _) = Simulator.applyHealth(h, steps: 11 * 100, at: plus(start, 3))
+check(h2.stage == .baby2, "只靠步数也能推进阶段（\(h2.stage.display)）")
+
+var hh = h2
+hh.strength = 1
+hh.tuning.weights = .init(time: 0, health: 1, token: 0)
+let (h3, _) = Simulator.applyHealth(hh, steps: 3000, at: plus(start, 4))
+check(h3.strength >= 2, "3000 步补 1 颗力量心（\(hh.strength) → \(h3.strength)）")
+
+var tk = h2
+tk.effort = 0
+tk.tuning.weights = .init(time: 0, health: 0, token: 1)
+let (tk2, _) = Simulator.applyTokens(tk, tokens: 80000, at: plus(start, 5))
+check(tk2.effort > 0, "8 万 token 补努力值（\(tk.effort) → \(tk2.effort)）")
+check(tk2.totalTokens == 80000, "token 终身统计累计（\(tk2.totalTokens)）")
+
+var zt = Tuning()
+zt.weights = .init(time: 0, health: 0, token: 0)
+var z = World.newGame(at: start, tuning: zt)
+z = Simulator.resolve(z, now: plus(start, 600)).0
+check(z.driveMinutes == 0, "三条线全关时，纯时间不推进进化（\(z.driveMinutes)）")
 
 print(exitCode == 0 ? "\nALL PASS" : "\nHAS FAILURES")
 exit(exitCode)

@@ -40,8 +40,16 @@ struct World: Codable {
     var stageStartedAt: Date
     var lastResolvedAt: Date
 
+    /// 进化进度，单位是"驱动分钟"= 三个源加权折算后的和。
+    /// 时间源每分钟 +1×weights.time；健康与 token 由 applyHealth/applyTokens 累加。
+    var driveMinutes: Double
+    var healthStrengthAccum: Double
+    var tokenEffortAccum: Double
+    /// 累计走过多少步、花过多少 token（终身统计，不随进化清零）
+    var totalSteps: Int
+    var totalTokens: Int
+
     // 内部累加器（分钟）
-    var awakeMinutes: Int
     var hungerAccum: Int
     var strengthAccum: Int
     var poopAccum: Int
@@ -68,7 +76,9 @@ struct World: Codable {
             careMistakes: 0, sleepDisturb: 0, overfeed: 0, trainCount: 0,
             battles: 0, wins: 0,
             bornAt: now, stageStartedAt: now, lastResolvedAt: now,
-            awakeMinutes: 0, hungerAccum: 0, strengthAccum: 0, poopAccum: 0,
+            driveMinutes: 0, healthStrengthAccum: 0, tokenEffortAccum: 0,
+            totalSteps: 0, totalTokens: 0,
+            hungerAccum: 0, strengthAccum: 0, poopAccum: 0,
             callKind: .none, callStartedAt: nil, callPenalized: false,
             isAsleep: false, isDead: false, poopingInjuredThisCycle: false,
             log: []
@@ -90,7 +100,7 @@ struct World: Codable {
     /// 距离下一次进化还有多少分钟（睡眠不计）。不做世界推进，仅用于展示。
     var minutesToEvolution: Int? {
         guard let need = Evolution.thresholdMinutes(for: stage, tuning: tuning) else { return nil }
-        return max(0, need - awakeMinutes)
+        return Int(max(0, Double(need) - driveMinutes))
     }
 
     var nextStage: Stage? { stage.next }

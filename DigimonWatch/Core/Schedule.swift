@@ -21,7 +21,7 @@ enum Schedule {
 
         var hunger = w.hunger
         var strength = w.strength
-        var awake = w.awakeMinutes
+        var drive = w.driveMinutes
         var hungerAccum = w.hungerAccum
         var strengthAccum = w.strengthAccum
         var t = w.lastResolvedAt > now ? w.lastResolvedAt : now
@@ -33,9 +33,9 @@ enum Schedule {
             let asleep = Simulator.isSleepHour(t, tuning: w.tuning)
 
             if w.stage == .egg {
-                awake += 1
+                drive += 1.0
                 if let need = Evolution.thresholdMinutes(for: .egg, tuning: w.tuning),
-                   awake >= need {
+                   drive >= Double(need) {
                     return Event(date: t, title: "HATCHING", body: "Your egg is waking up.")
                 }
                 continue
@@ -72,9 +72,9 @@ enum Schedule {
             }
 
             // 进化
-            awake += 1
+            drive += w.tuning.weights.time
             if let need = Evolution.thresholdMinutes(for: w.stage, tuning: w.tuning),
-               awake >= need {
+               drive >= Double(need) {
                 return Event(date: t,
                              title: "EVOLVING",
                              body: "\(w.species) is about to change.")

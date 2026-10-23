@@ -32,6 +32,27 @@ struct Tuning: Codable, Equatable {
     var trainWeightLoss: Int = 1
     var feedWeightGain: Int = 1
     var overfeedThreshold: Int = 3          // 连续在满腹时喂食
+
+    // MARK: - 三线驱动
+    //
+    // 三个源各自折算成"驱动分钟"，加权后推进进化进度。
+    // 权重设 0 就关掉那条线；time=1 且其余=0 时行为与经典复刻完全一致。
+
+    var weights = DriveWeights()
+    /// 多少步算一个驱动分钟（约 100 步 ≈ 1 分钟，1 万步 ≈ 100 分钟）
+    var stepsPerDriveMinute: Double = 100
+    /// 多少 token 算一个驱动分钟（约 2000 token ≈ 1 分钟，20 万 token ≈ 100 分钟）
+    var tokensPerDriveMinute: Double = 2000
+    /// 每走满多少个驱动分钟，健康线补 1 颗力量心
+    var healthStrengthPerDriveMinute: Double = 30
+    /// 每多少个驱动分钟，token 线补 0.05 努力值
+    var tokenEffortPerDriveMinute: Double = 40
+
+    struct DriveWeights: Codable, Equatable {
+        var time: Double = 1.0
+        var health: Double = 1.0
+        var token: Double = 1.0
+    }
 }
 
 /// 阶段。原版 6 段 + 蛋。
