@@ -48,6 +48,9 @@ struct World: Codable {
     /// 累计走过多少步、花过多少 token（终身统计，不随进化清零）
     var totalSteps: Int
     var totalTokens: Int
+    /// 当日 token 记账（用于每日上限），格式 yyyy-MM-dd
+    var tokenDay: String
+    var tokenDayUsed: Int
 
     // 内部累加器（分钟）
     var hungerAccum: Int
@@ -77,7 +80,7 @@ struct World: Codable {
             battles: 0, wins: 0,
             bornAt: now, stageStartedAt: now, lastResolvedAt: now,
             driveMinutes: 0, healthStrengthAccum: 0, tokenEffortAccum: 0,
-            totalSteps: 0, totalTokens: 0,
+            totalSteps: 0, totalTokens: 0, tokenDay: "", tokenDayUsed: 0,
             hungerAccum: 0, strengthAccum: 0, poopAccum: 0,
             callKind: .none, callStartedAt: nil, callPenalized: false,
             isAsleep: false, isDead: false, poopingInjuredThisCycle: false,
@@ -107,6 +110,7 @@ struct World: Codable {
 
     var mood: String {
         if isDead { return "GONE" }
+        if stage == .egg { return "HATCHING" }
         if isAsleep { return "ASLEEP" }
         if callKind.isActive { return "CALLING" }
         if injured > 0 { return "HURT" }

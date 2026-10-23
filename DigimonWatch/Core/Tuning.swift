@@ -41,8 +41,11 @@ struct Tuning: Codable, Equatable {
     var weights = DriveWeights()
     /// 多少步算一个驱动分钟（约 100 步 ≈ 1 分钟，1 万步 ≈ 100 分钟）
     var stepsPerDriveMinute: Double = 100
-    /// 多少 token 算一个驱动分钟（约 2000 token ≈ 1 分钟，20 万 token ≈ 100 分钟）
-    var tokensPerDriveMinute: Double = 2000
+    /// 多少 token 算一个驱动分钟。
+    /// 只统计手表内对话消耗：一次问答约 300–600 token，定 300 就是"聊一次约 1–2 分钟成长"。
+    var tokensPerDriveMinute: Double = 300
+    /// 每日计入上限。防刷——否则猛聊就能把进化硬刷出来，养成节奏就废了。
+    var dailyTokenCap: Int = 20000
     /// 每走满多少个驱动分钟，健康线补 1 颗力量心
     var healthStrengthPerDriveMinute: Double = 30
     /// 每多少个驱动分钟，token 线补 0.05 努力值

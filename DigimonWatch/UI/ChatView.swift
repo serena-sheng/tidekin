@@ -9,6 +9,9 @@ struct ChatView: View {
         ScrollViewReader { proxy in
             ScrollView {
                 VStack(alignment: .leading, spacing: 6) {
+                    Text("今日已计入 \(store.world.tokenDayUsed)/\(store.world.tuning.dailyTokenCap) token")
+                        .font(.system(size: 8, design: .monospaced))
+                        .foregroundStyle(Theme.ink.opacity(0.28))
                     if store.chatLog.isEmpty {
                         Text("跟 \(store.world.species) 说点什么")
                             .font(.system(size: 11, design: .monospaced))

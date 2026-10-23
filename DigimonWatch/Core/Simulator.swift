@@ -231,12 +231,24 @@ enum Simulator {
     }
 
     /// Token 线：把 token 折成驱动分钟，并按比例补努力值。
+    /// 只统计手表内对话的消耗，且每天有上限，超出部分不计。
     static func applyTokens(_ input: World, tokens: Int, at now: Date) -> (World, [TimedEvent]) {
         var w = resolve(input, now: now).0
         var events: [TimedEvent] = []
         guard tokens > 0, !w.isDead, w.stage != .egg else { return (w, events) }
 
-        w.totalTokens += tokens
+        let today = dayKey(now)
+        if w.tokenDay != today {
+            w.tokenDay = today
+            w.tokenDayUsed = 0
+        }
+        let remaining = max(0, w.tuning.dailyTokenCap - w.tokenDayUsed)
+        let counted = min(tokens, remaining)
+        guard counted > 0 else { return (w, events) }
+
+        w.tokenDayUsed += counted
+        w.totalTokens += counted
+        let tokens = counted
         let units = Double(tokens) / max(1, w.tuning.tokensPerDriveMinute)
         let driven = units * w.tuning.weights.token
         w.driveMinutes += driven
@@ -251,6 +263,13 @@ enum Simulator {
         checkEvolution(&w, at: now, events: &events)
         if let last = events.last { w.log.append(LogEntry(at: last.date, text: last.event.text)) }
         return (w, events)
+    }
+
+    static func dayKey(_ date: Date) -> String {
+        let f = DateFormatter()
+        f.dateFormat = "yyyy-MM-dd"
+        f.timeZone = .current
+        return f.string(from: date)
     }
 
     // MARK: - 玩家动作

@@ -37,5 +37,4 @@ enum Keychain {
     }
 
     static let deepSeekKey = "deepseek.apiKey"
-    static let tokenEndpointSecret = "token.endpointSecret"
 }

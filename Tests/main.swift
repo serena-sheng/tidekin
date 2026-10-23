@@ -148,7 +148,16 @@ tk.effort = 0
 tk.tuning.weights = .init(time: 0, health: 0, token: 1)
 let (tk2, _) = Simulator.applyTokens(tk, tokens: 80000, at: plus(start, 5))
 check(tk2.effort > 0, "8 万 token 补努力值（\(tk.effort) → \(tk2.effort)）")
-check(tk2.totalTokens == 80000, "token 终身统计累计（\(tk2.totalTokens)）")
+check(tk2.totalTokens == 20000, "单日 token 计入封顶 20000（\(tk2.totalTokens)）")
+
+var cap = h2
+cap.tuning.weights = .init(time: 0, health: 0, token: 1)
+let (c1, _) = Simulator.applyTokens(cap, tokens: 50000, at: plus(start, 6))
+check(c1.tokenDayUsed == 20000, "超额部分不计入（\(c1.tokenDayUsed)）")
+let (c2, _) = Simulator.applyTokens(c1, tokens: 5000, at: plus(start, 7))
+check(c2.tokenDayUsed == 20000, "同一天继续聊不涨额度（\(c2.tokenDayUsed)）")
+let (c3, _) = Simulator.applyTokens(c2, tokens: 3000, at: date(24, 9, 0))
+check(c3.tokenDayUsed == 3000, "跨天额度重置（\(c3.tokenDayUsed)）")
 
 var zt = Tuning()
 zt.weights = .init(time: 0, health: 0, token: 0)

@@ -51,7 +51,6 @@ struct RootView: View {
         .task {
             store.tick()
             await store.syncHealth()
-            await store.syncTokens()
             while !Task.isCancelled {
                 try? await Task.sleep(for: .seconds(10))
                 store.tick()
@@ -72,10 +71,12 @@ struct RootView: View {
                 .foregroundStyle(Theme.ink)
                 .lineLimit(1)
                 .minimumScaleFactor(0.6)
-            Text(store.world.stage.display)
-                .font(.system(size: 7, weight: .bold, design: .monospaced))
-                .foregroundStyle(Theme.ink.opacity(0.3))
-                .lineLimit(1)
+            if store.world.stage != .egg {
+                Text(store.world.stage.display)
+                    .font(.system(size: 7, weight: .bold, design: .monospaced))
+                    .foregroundStyle(Theme.ink.opacity(0.3))
+                    .lineLimit(1)
+            }
             Spacer(minLength: 4)
             Text(store.world.mood)
                 .font(.system(size: 8, weight: .semibold, design: .monospaced))
@@ -91,10 +92,18 @@ struct RootView: View {
         }
     }
 
+    @ViewBuilder
     private var meters: some View {
-        VStack(spacing: 2) {
-            HeartMeter(label: "HNG", value: store.world.hunger, maxValue: store.world.maxHearts)
-            HeartMeter(label: "PWR", value: store.world.strength, maxValue: store.world.maxHearts)
+        if store.world.stage == .egg {
+            Text("HATCHING...")
+                .font(.system(size: 8, weight: .bold, design: .monospaced))
+                .foregroundStyle(Theme.ink.opacity(0.25))
+                .frame(height: 20)
+        } else {
+            VStack(spacing: 2) {
+                HeartMeter(label: "HNG", value: store.world.hunger, maxValue: store.world.maxHearts)
+                HeartMeter(label: "PWR", value: store.world.strength, maxValue: store.world.maxHearts)
+            }
         }
     }
 

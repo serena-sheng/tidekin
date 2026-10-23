@@ -6,8 +6,6 @@ struct SettingsView: View {
     @Environment(\.dismiss) private var dismiss
 
     @State private var apiKey = Keychain.get(Keychain.deepSeekKey) ?? ""
-    @State private var endpoint = UserDefaults.standard.string(forKey: "drive.token.endpoint") ?? ""
-    @State private var manualTotal = ""
     @State private var healthMessage = "未授权"
 
     var body: some View {
@@ -38,24 +36,13 @@ struct SettingsView: View {
 
                 Divider()
 
-                section("Token 账本")
-                TextField("累计值端点 URL", text: $endpoint)
+                section("Token（仅手表内对话）")
+                Text("今日 \(store.world.tokenDayUsed) / \(store.world.tuning.dailyTokenCap)")
                     .font(.system(size: 10, design: .monospaced))
-                Button("保存并拉取") {
-                    UserDefaults.standard.set(endpoint, forKey: "drive.token.endpoint")
-                    Task { await store.syncTokens() }
-                }
-                .buttonStyle(.bordered)
-                HStack {
-                    TextField("手动累计", text: $manualTotal)
-                        .font(.system(size: 10, design: .monospaced))
-                    Button("记") {
-                        if let n = Int(manualTotal) { store.recordTokensManually(n) }
-                        manualTotal = ""
-                    }
-                    .buttonStyle(.bordered)
-                }
-                Text("已记 \(TokenLedger.lastTotal) token")
+                Text("累计 \(store.world.totalTokens)")
+                    .font(.system(size: 9, design: .monospaced))
+                    .foregroundStyle(.secondary)
+                Text("\(Int(store.world.tuning.tokensPerDriveMinute)) token = 1 分钟成长")
                     .font(.system(size: 9, design: .monospaced))
                     .foregroundStyle(.secondary)
 

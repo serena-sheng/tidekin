@@ -86,30 +86,9 @@ final class Store: ObservableObject {
         if let last = events.last { flash(last.event.text) }
     }
 
-    // MARK: - Token 线
+    // MARK: - Token 线（只统计手表内对话消耗）
 
-    func syncTokens() async {
-        let endpoint = UserDefaults.standard.string(forKey: "drive.token.endpoint") ?? ""
-        guard !endpoint.isEmpty else { return }
-        do {
-            let delta = try await TokenLedger.pullDelta(
-                endpoint: endpoint,
-                secret: Keychain.get(Keychain.tokenEndpointSecret)
-            )
-            guard delta > 0 else { return }
-            applyTokenDelta(delta)
-        } catch {
-            chatError = error.localizedDescription
-        }
-    }
-
-    func recordTokensManually(_ total: Int) {
-        let delta = TokenLedger.recordManual(total: total)
-        guard delta > 0 else { return }
-        applyTokenDelta(delta)
-    }
-
-    private func applyTokenDelta(_ delta: Int) {
+    func applyTokenDelta(_ delta: Int) {
         let (next, events) = Simulator.applyTokens(world, tokens: delta, at: Date())
         world = next
         Persistence.save(next)
