@@ -30,6 +30,12 @@ struct RootView: View {
             if UserDefaults.standard.object(forKey: "debugPage") != nil {
                 store.page = UserDefaults.standard.integer(forKey: "debugPage")
             }
+            if UserDefaults.standard.bool(forKey: "debugAwake") {
+                var t = store.world.tuning
+                t.sleepStartHour = 0
+                t.sleepEndHour = 0
+                store.setTuning(t)
+            }
             store.tick()
             await store.syncHealth()
             while !Task.isCancelled {
@@ -82,8 +88,9 @@ struct CompanionPage: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .animation(.easeOut(duration: 0.18), value: store.world.headline)
 
-            LCDView(world: store.world, showMeters: false, spriteMax: 200)
+            LCDView(world: store.world, showMeters: false, spriteMax: 112)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .padding(.vertical, 8)
                 .contentShape(Rectangle())
                 .onTapGesture { store.tapCreature() }
 
@@ -104,19 +111,15 @@ struct CompanionPage: View {
         return Theme.ink.opacity(0.6)
     }
 
-    /// 动作串：横向可滑，一屏露出约 2.8 个。
-    /// 既满足「一行最多 3 个」的可见密度，又不用翻页找次要动作。
+    /// 四个照顾动作全部固定在首屏：横滑与纵向翻页共用一个安全区，
+    /// 手势仲裁不可靠；而 CLEAN/HEAL 的需求高亮如果滑到屏外就等于没有提示。
     private var actionBar: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 6) {
-                ForEach(Store.Action.allCases, id: \.rawValue) { action in
-                    cell(action)
-                        .frame(width: 54)
-                }
-            }
+        HStack(spacing: 4) {
+            cell(.feed)
+            cell(.train)
+            cell(.clean)
+            cell(.heal)
         }
-        .frame(maxWidth: .infinity)
-        .frame(height: Grid.rowActions)
     }
 
     private func cell(_ action: Store.Action) -> some View {
@@ -130,11 +133,15 @@ struct CompanionPage: View {
         return Button {
             store.perform(action.rawValue)
         } label: {
-            Image(systemName: action.symbol)
-                .font(.system(size: 19, weight: .medium))
-                .foregroundStyle(iconColor)
-                .frame(maxWidth: .infinity)
-                .frame(height: Grid.rowActions)
+            VStack(spacing: 2) {
+                Image(systemName: action.symbol)
+                    .font(.system(size: 17, weight: .medium))
+                Text(action.label)
+                    .font(.system(size: 10, weight: .medium, design: .monospaced))
+            }
+            .foregroundStyle(iconColor)
+            .frame(maxWidth: .infinity)
+            .frame(height: Grid.rowActions)
                 .background(
                     RoundedRectangle(cornerRadius: Grid.actionRadius, style: .continuous)
                         .fill(demanded ? Theme.lcd.opacity(0.16) : Theme.ink.opacity(0.07))
@@ -187,9 +194,11 @@ struct StatusPage: View {
                 .padding(.top, 10)
             }
 
-            Spacer(minLength: 8)
+            Spacer(minLength: 10)
 
-            Divider().opacity(0.15).padding(.bottom, 9)
+            actionRow
+
+            Spacer(minLength: 10)
 
             VStack(spacing: 5) {
                 row("BATTLES", "\(store.world.wins)/\(store.world.battles)")
@@ -239,10 +248,6 @@ struct StatusPage: View {
                     .font(.system(size: 12, weight: .medium, design: .monospaced))
                     .foregroundStyle(Theme.ink.opacity(0.55))
                 Spacer(minLength: 0)
-                Text("\(value)/\(store.world.maxHearts)")
-                    .font(.system(size: 12, weight: .medium, design: .monospaced))
-                    .monospacedDigit()
-                    .foregroundStyle(Theme.ink.opacity(0.75))
             }
             SegmentMeter(glyph: "", value: value, maxValue: store.world.maxHearts, glyphWidth: 0)
                 .frame(height: 8)
@@ -259,6 +264,7 @@ struct StatusPage: View {
 
     private func actionButton(_ action: Store.Action) -> some View {
         let demanded = action.rawValue == store.demandIndex && !store.actionsDisabled
+        let disabled = store.actionsDisabled
         return Button {
             store.perform(action.rawValue)
         } label: {
@@ -268,7 +274,9 @@ struct StatusPage: View {
                 Text(action.label)
                     .font(.system(size: 12, weight: .medium, design: .monospaced))
             }
-            .foregroundStyle(demanded ? Theme.lcd : Theme.ink.opacity(0.75))
+            .foregroundStyle(demanded ? Theme.lcd
+                             : disabled ? Theme.ink.opacity(0.28)
+                             : Theme.ink.opacity(0.75))
             .frame(maxWidth: .infinity)
             .frame(height: Grid.rowActions)
             .background(
@@ -293,6 +301,22 @@ struct StatusPage: View {
             return "max"
         }
         return m < 60 ? "\(next.display) \(m)m" : "\(next.display) \(m / 60)h"
+    }
+
+    private func linkRow(_ symbol: String, _ label: String) -> some View {
+        HStack(spacing: 6) {
+            Image(systemName: symbol)
+                .font(.system(size: 13, weight: .medium))
+            Text(label)
+                .font(.system(size: 13, weight: .semibold, design: .monospaced))
+            Spacer()
+            Image(systemName: "chevron.right")
+                .font(.system(size: 11, weight: .semibold))
+                .opacity(0.4)
+        }
+        .foregroundStyle(Theme.ink.opacity(0.8))
+        .frame(height: 36)
+        .contentShape(Rectangle())
     }
 
     private func row(_ k: String, _ v: String) -> some View {
@@ -334,40 +358,32 @@ struct RecordsPage: View {
                     row("TOKENS", "\(store.world.totalTokens)")
                 }
             } else {
-                Text("NO RECORDS YET")
-                    .font(.system(size: 12, weight: .medium, design: .monospaced))
-                    .foregroundStyle(Theme.ink.opacity(0.4))
+                VStack(alignment: .leading, spacing: 3) {
+                    Text("NO RECORDS YET")
+                        .font(.system(size: 13, weight: .medium, design: .monospaced))
+                        .foregroundStyle(Theme.ink.opacity(0.75))
+                    Text("TRAIN OR FIGHT ONCE — IT LANDS HERE")
+                        .font(.system(size: 11, weight: .medium, design: .monospaced))
+                        .foregroundStyle(Theme.ink.opacity(0.5))
+                        .fixedSize(horizontal: false, vertical: true)
+                }
             }
 
             Spacer(minLength: 8)
 
+            // 与第二页的 BATTLES / NEXT 同构：无容器行式，靠图标区分
             Button {
                 store.showChat = true
             } label: {
-                HStack(spacing: 5) {
-                    Image(systemName: Store.Action.talk.symbol)
-                        .font(.system(size: 15, weight: .medium))
-                    Text("TALK")
-                        .font(.system(size: 12, weight: .medium, design: .monospaced))
-                }
-                .frame(maxWidth: .infinity)
-                .frame(height: Grid.rowActions)
-                .background(Theme.ink.opacity(0.07),
-                            in: RoundedRectangle(cornerRadius: Grid.actionRadius, style: .continuous))
-                .foregroundStyle(Theme.ink.opacity(0.75))
+                linkRow(Store.Action.talk.symbol, "TALK")
             }
             .buttonStyle(PressableStyle())
-            .padding(.bottom, 6)
+            .padding(.bottom, 8)
 
             Button {
                 store.showSettings = true
             } label: {
-                Text("SETUP")
-                    .font(.system(size: 13, weight: .semibold, design: .monospaced))
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 9)
-                    .background(Theme.panel, in: Capsule())
-                    .foregroundStyle(Theme.ink.opacity(0.85))
+                linkRow("gearshape", "SETUP")
             }
             .buttonStyle(PressableStyle())
             .sheet(isPresented: $store.showSettings) {
@@ -377,6 +393,22 @@ struct RecordsPage: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .padding(.horizontal, Grid.margin)
         .padding(.top, 2)
+    }
+
+    private func linkRow(_ symbol: String, _ label: String) -> some View {
+        HStack(spacing: 6) {
+            Image(systemName: symbol)
+                .font(.system(size: 13, weight: .medium))
+            Text(label)
+                .font(.system(size: 13, weight: .semibold, design: .monospaced))
+            Spacer()
+            Image(systemName: "chevron.right")
+                .font(.system(size: 11, weight: .semibold))
+                .opacity(0.4)
+        }
+        .foregroundStyle(Theme.ink.opacity(0.8))
+        .frame(height: 36)
+        .contentShape(Rectangle())
     }
 
     private func row(_ k: String, _ v: String) -> some View {

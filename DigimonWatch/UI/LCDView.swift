@@ -65,7 +65,7 @@ struct LCDView: View {
             }
         }
         .frame(maxWidth: .infinity)
-        .opacity(world.isAsleep ? 0.55 : 1)
+        .opacity(world.isAsleep ? 0.7 : 1)
     }
 
     // MARK: - 计量

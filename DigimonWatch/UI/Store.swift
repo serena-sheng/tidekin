@@ -44,15 +44,15 @@ final class Store: ObservableObject {
     private var toastToken = 0
 
     enum Action: Int, CaseIterable {
-        case feed, train, battle, talk, clean, heal
+        case feed, train, clean, heal, battle, talk
 
         var symbol: String {
             switch self {
             case .feed: return "fork.knife"
-            case .train: return "figure.strengthtraining.traditional"
-            case .clean: return "trash"
+            case .train: return "dumbbell.fill"
+            case .clean: return "sparkles"
             case .heal: return "cross.case"
-            case .battle: return "bolt.fill"
+            case .battle: return "burst.fill"
             case .talk: return "bubble.left.and.bubble.right"
             }
         }
@@ -63,7 +63,7 @@ final class Store: ObservableObject {
             case .train: return "TRAIN"
             case .clean: return "CLEAN"
             case .heal: return "HEAL"
-            case .battle: return "BATTLE"
+            case .battle: return "FIGHT"
             case .talk: return "TALK"
             }
         }
@@ -287,6 +287,13 @@ final class Store: ObservableObject {
     func dismissAway() { away = nil }
 
     // MARK: - 提示队列
+
+    func setTuning(_ tuning: Tuning) {
+        world.tuning = tuning
+        // 睡眠是派生状态，改完参数要立刻重算，否则要等下一分钟才生效
+        world.isAsleep = Simulator.isSleepHour(Date(), tuning: tuning)
+        Persistence.save(world)
+    }
 
     func updateWeights(_ weights: Tuning.DriveWeights) {
         world.tuning.weights = weights
