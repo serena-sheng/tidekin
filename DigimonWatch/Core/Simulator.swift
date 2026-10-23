@@ -272,6 +272,32 @@ enum Simulator {
         return f.string(from: date)
     }
 
+    // MARK: - 战斗
+
+    /// 记一场战斗的结果。Perfect 进化需要 battles/wins，所以这里要顺手判一次进化。
+    static func recordBattle(_ input: World, won: Bool, at now: Date) -> (World, [TimedEvent]) {
+        var w = resolve(input, now: now).0
+        var events: [TimedEvent] = []
+        guard !w.isDead else { return (w, events) }
+
+        w.battles += 1
+        if won {
+            w.wins += 1
+        } else {
+            // 输了可能受伤，这是 Ver.1 里唯一会把宠物打死的机制
+            w.injured = min(w.tuning.maxInjury, w.injured + 1)
+            events.append(TimedEvent(now, .injured))
+        }
+
+        if w.injured >= w.tuning.maxInjury {
+            w.isDead = true
+            events.append(TimedEvent(now, .died))
+        } else {
+            checkEvolution(&w, at: now, events: &events)
+        }
+        return (w, events)
+    }
+
     // MARK: - 玩家动作
 
     static func feed(_ input: World, at now: Date) -> World {

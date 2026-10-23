@@ -24,6 +24,7 @@ struct RootView: View {
                 }
                 .contentShape(Rectangle())
                 .onTapGesture { store.perform(store.selection) }
+                .onLongPressGesture { store.startBattle() }
             meters
             actionBar
         }
@@ -49,6 +50,10 @@ struct RootView: View {
             if new == .active { store.tick() }
         }
         .task {
+            // 调试用：xcrun simctl launch <dev> <bundle> -debugBattle YES
+            if UserDefaults.standard.bool(forKey: "debugBattle") {
+                store.startBattle()
+            }
             store.tick()
             await store.syncHealth()
             while !Task.isCancelled {
@@ -61,6 +66,9 @@ struct RootView: View {
         }
         .sheet(isPresented: $store.showChat) {
             NavigationStack { ChatView(store: store) }
+        }
+        .sheet(isPresented: $store.showBattle) {
+            BattleView(store: store)
         }
     }
 
@@ -153,6 +161,25 @@ struct DetailView: View {
                 row("TRAIN", "\(store.world.trainCount)")
                 row("OVRF", "\(store.world.overfeed)")
                 row("WKDN", "\(store.world.sleepDisturb)")
+
+                Button {
+                    store.showDetail = false
+                    store.startBattle()
+                } label: {
+                    Label("BATTLE", systemImage: "bolt.fill")
+                        .font(.system(size: 10, weight: .bold, design: .monospaced))
+                }
+                .buttonStyle(.bordered)
+                .tint(Theme.warn)
+
+                HStack {
+                    Text("BATTLES")
+                        .font(.system(size: 9, weight: .bold, design: .monospaced))
+                        .foregroundStyle(.secondary)
+                    Spacer()
+                    Text("\(store.world.wins)/\(store.world.battles)")
+                        .font(.system(size: 10, weight: .semibold, design: .monospaced))
+                }
 
                 NavigationLink("SETUP") { SettingsView(store: store) }
                     .font(.system(size: 10, weight: .bold, design: .monospaced))

@@ -9,6 +9,8 @@ final class Store: ObservableObject {
     @Published var toast: String?
     @Published var showDetail = false
     @Published var showChat = false
+    @Published var showBattle = false
+    @Published var battle: BattleState?
 
     // 聊天
     @Published var chatLog: [(role: String, text: String)] = []
@@ -90,6 +92,26 @@ final class Store: ObservableObject {
 
     func applyTokenDelta(_ delta: Int) {
         let (next, events) = Simulator.applyTokens(world, tokens: delta, at: Date())
+        world = next
+        Persistence.save(next)
+        rescheduleIfNeeded(force: true)
+        if let last = events.last { flash(last.event.text) }
+    }
+
+    // MARK: - 战斗
+
+    func startBattle() {
+        battle = BattleState.start(world: world, roll: Int(Date().timeIntervalSince1970))
+        showBattle = true
+    }
+
+    func battleAttack(charge: Double) {
+        guard var b = battle, !b.finished else { return }
+        b.attack(charge: charge, roll: Int.random(in: 0...99), player: world)
+        battle = b
+        guard b.finished else { return }
+
+        let (next, events) = Simulator.recordBattle(world, won: b.won == true, at: Date())
         world = next
         Persistence.save(next)
         rescheduleIfNeeded(force: true)

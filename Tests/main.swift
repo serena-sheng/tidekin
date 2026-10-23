@@ -165,5 +165,33 @@ var z = World.newGame(at: start, tuning: zt)
 z = Simulator.resolve(z, now: plus(start, 600)).0
 check(z.driveMinutes == 0, "三条线全关时，纯时间不推进进化（\(z.driveMinutes)）")
 
+// 17-19. 战斗
+var fighter = World.newGame(at: start, tuning: t)
+fighter = Simulator.resolve(fighter, now: plus(start, 13)).0   // KOROMON
+fighter.strength = 4
+
+var strong = BattleState.start(world: fighter, roll: 0)
+let beforeHP = strong.enemyHP
+strong.attack(charge: 1.0, roll: 1, player: fighter)
+let highDamage = beforeHP - strong.enemyHP
+
+var weak = BattleState.start(world: fighter, roll: 0)
+weak.attack(charge: 0.0, roll: 1, player: fighter)
+let lowDamage = beforeHP - weak.enemyHP
+check(highDamage > lowDamage, "蓄力越高伤害越大（\(highDamage) vs \(lowDamage)）")
+
+var long = BattleState.start(world: fighter, roll: 2)
+for i in 0..<6 where !long.finished {
+    long.attack(charge: 0.5, roll: i, player: fighter)
+}
+check(long.finished, "5 回合内必定结束（实际 \(long.round) 回合）")
+check(long.won != nil, "结束后有结果")
+
+var rec = fighter
+rec.battles = 3; rec.wins = 1
+let (rec2, _) = Simulator.recordBattle(rec, won: false, at: plus(start, 14))
+check(rec2.battles == 4 && rec2.wins == 1, "输了记 battles+1、wins 不变（\(rec2.battles)/\(rec2.wins)）")
+check(rec2.injured == rec.injured + 1, "输了会受伤（\(rec.injured) → \(rec2.injured)）")
+
 print(exitCode == 0 ? "\nALL PASS" : "\nHAS FAILURES")
 exit(exitCode)
