@@ -1,38 +1,48 @@
 import SwiftUI
 
-/// 液晶屏的统一色阶。改这里 = 改整机气质。
+/// 液晶屏与整机的色阶。
+///
+/// 关键约束来自 HIG：材质只用于控制层，内容层用标准材质 + 亮度分层。
+/// 所以这里不靠描边分层（描边对纯黑只有 1.5:1，等于不存在），靠亮度与色块面积分层。
 enum Theme {
-    /// 点亮的像素（偏黄绿，模拟 90 年代 STN 液晶）
+    /// 强调色。面积必须小：只给卡底、计量、选中态
     static let lcd = Color(red: 0.58, green: 0.88, blue: 0.52)
-    /// 未点亮的底纹
-    static let lcdDim = Color(red: 0.11, green: 0.20, blue: 0.13)
-    /// 告警
-    static let warn = Color(red: 0.95, green: 0.72, blue: 0.28)
-    /// 紧急
+    /// 计量槽 / 未点亮
+    static let lcdDim = Color(red: 0.13, green: 0.20, blue: 0.12)
+    /// 需求提示（比红温和，不与应用图标抢）
+    static let warn = Color(red: 0.95, green: 0.76, blue: 0.31)
     static let danger = Color(red: 0.95, green: 0.35, blue: 0.38)
-    /// 面板底色
+    /// 控制层底色
     static let panel = Color.white.opacity(0.08)
     static let ink = Color.white
+
+    /// 卡底：同色 10% → 2.5% 的垂直渐变。亮色必须有托底，否则直接浮在黑上会发脏。
+    static var cardFill: LinearGradient {
+        LinearGradient(
+            colors: [lcd.opacity(0.14), lcd.opacity(0.03)],
+            startPoint: .top, endPoint: .bottom
+        )
+    }
 }
 
-/// 版式网格。所有间距只能取这里的值，否则一定会歪。
-///
-/// 参照瑞士平面设计的做法：先定列与边距，元素只落在网格线上。
-/// 46mm 表屏宽 198pt，左右各留 8，内容宽 182，6 列每列 30.33。
+/// 版式栅格。数值来自 46mm 实际像素 208×248（416×496 @2x）。
 enum Grid {
-    static let margin: CGFloat = 8
-    static let gap: CGFloat = 6
-    static let columns = 6
+    static let margin: CGFloat = 10
+    static let gap: CGFloat = 7
 
-    // 纵向行高，加起来必须 ≤ 可用高度（242 - 状态栏)
-    static let rowHeader: CGFloat = 30
-    static let rowScreen: CGFloat = 96
-    static let rowMeters: CGFloat = 24
-    static let rowActions: CGFloat = 32
+    static let rowHeader: CGFloat = 38
+    static let rowCard: CGFloat = 120
+    static let rowActions: CGFloat = 42
 
-    /// 6 列里占几列的宽度
-    static func span(_ n: Int, total: CGFloat) -> CGFloat {
-        let inner = total - margin * 2
-        return inner * CGFloat(n) / CGFloat(columns)
-    }
+    /// 动作格
+    static let actionWidth: CGFloat = 28
+    static let actionRadius: CGFloat = 12
+    static let actionGap: CGFloat = 4
+
+    /// 卡内
+    static let cardRadius: CGFloat = 20
+    static let cardPadding: CGFloat = 8
+    static let spriteSize: CGFloat = 88
+    static let meterWidth: CGFloat = 96
+    static let meterHeight: CGFloat = 5
 }

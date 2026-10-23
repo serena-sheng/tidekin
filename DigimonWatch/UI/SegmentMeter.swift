@@ -9,15 +9,15 @@ struct SegmentMeter: View {
     let value: Int
     let maxValue: Int
 
-    private let segGap: CGFloat = 3
-    private let segHeight: CGFloat = 6
+    private let segGap: CGFloat = 2
+    private let segHeight: CGFloat = 5
 
     var body: some View {
         HStack(spacing: 0) {
             Text(glyph)
-                .font(.system(size: 10, weight: .bold, design: .monospaced))
-                .foregroundStyle(Theme.ink.opacity(0.7))
-                .frame(width: 11, alignment: .leading)
+                .font(.system(size: 9, weight: .bold, design: .monospaced))
+                .foregroundStyle(Theme.ink.opacity(0.45))
+                .frame(width: 10, alignment: .leading)
 
             HStack(spacing: segGap) {
                 ForEach(0..<maxValue, id: \.self) { i in
