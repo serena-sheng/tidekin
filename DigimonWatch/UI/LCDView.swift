@@ -1,6 +1,7 @@
 import SwiftUI
 
-/// 液晶屏：16×16 点阵 + 底纹。1fps 观感，Always-On 下也不会耗电。
+/// 液晶屏。优先用官方彩色精灵（16×16 最近邻放大），
+/// 没有资源的物种回退到手绘字符画。1fps 观感，Always-On 下不耗电。
 struct LCDView: View {
     let world: World
 
@@ -8,6 +9,11 @@ struct LCDView: View {
 
     private var sprite: [String] {
         Sprites.forSpecies(world.species, stage: world.stage, isDead: world.isDead)
+    }
+
+    private var bitmap: UIImage? {
+        guard !world.isDead else { return nil }
+        return SpriteStore.image(for: world.species)
     }
 
     var body: some View {
@@ -19,49 +25,40 @@ struct LCDView: View {
                 RoundedRectangle(cornerRadius: 14, style: .continuous)
                     .fill(Color.black)
 
-                Canvas { ctx, _ in
-                    // 底纹点阵：先画满，让屏幕始终有"玻璃"质感
-                    for y in 0..<grid {
-                        for x in 0..<grid {
-                            let r = CGRect(
-                                x: CGFloat(x) * cell + cell * 0.34,
-                                y: CGFloat(y) * cell + cell * 0.34,
-                                width: cell * 0.32,
-                                height: cell * 0.32
-                            )
-                            ctx.fill(Path(roundedRect: r, cornerRadius: cell * 0.12),
-                                     with: .color(Theme.lcdDim))
-                        }
+                // 极淡网格：给彩色像素一点"屏幕"质感，但不跟精灵抢注意力
+                Canvas { ctx, size in
+                    var path = Path()
+                    for i in 1..<grid {
+                        let x = CGFloat(i) * cell
+                        path.move(to: CGPoint(x: x, y: 0))
+                        path.addLine(to: CGPoint(x: x, y: size.height))
+                        let y = CGFloat(i) * cell
+                        path.move(to: CGPoint(x: 0, y: y))
+                        path.addLine(to: CGPoint(x: size.width, y: y))
                     }
-                    // 精灵：先求包围盒，再按内容居中缩放到 14 格
-                    var minX = grid, maxX = -1, minY = grid, maxY = -1
-                    for (y, row) in sprite.enumerated() {
-                        for (x, ch) in row.enumerated() where ch == "#" {
-                            minX = min(minX, x); maxX = max(maxX, x)
-                            minY = min(minY, y); maxY = max(maxY, y)
-                        }
-                    }
-                    if maxX >= minX {
-                        let bw = CGFloat(maxX - minX + 1)
-                        let bh = CGFloat(maxY - minY + 1)
-                        let span = max(bw, bh)
-                        let px = cell * 11.0 / span
-                        let ox = (side - bw * px) / 2 - CGFloat(minX) * px
-                        let oy = (side - bh * px) / 2 - CGFloat(minY) * px
-                        for (y, row) in sprite.enumerated() {
-                            for (x, ch) in row.enumerated() where ch == "#" {
-                                let r = CGRect(
-                                    x: ox + CGFloat(x) * px,
-                                    y: oy + CGFloat(y) * px,
-                                    width: px,
-                                    height: px
-                                ).insetBy(dx: px * 0.06, dy: px * 0.06)
-                                ctx.fill(Path(r), with: .color(Theme.lcd))
-                            }
-                        }
-                    }
+                    ctx.stroke(path, with: .color(Theme.lcdDim.opacity(0.22)), lineWidth: 0.5)
                 }
                 .frame(width: side, height: side)
+
+                if let bitmap {
+                    // 极淡背光：Botamon 这类深色精灵在黑底上几乎没有轮廓
+                    RadialGradient(
+                        colors: [Color.white.opacity(0.07), .clear],
+                        center: .center, startRadius: 0, endRadius: side * 0.45
+                    )
+                    .allowsHitTesting(false)
+
+                    Image(uiImage: bitmap)
+                        .resizable()
+                        .interpolation(.none)
+                        .scaledToFit()
+                        .padding(cell * 0.35)
+                } else {
+                    Canvas { ctx, _ in
+                        drawCharacterArt(ctx, cell: cell, side: side)
+                    }
+                    .frame(width: side, height: side)
+                }
 
                 cornerBadges
                     .padding(7)
@@ -71,11 +68,10 @@ struct LCDView: View {
                     .strokeBorder(Theme.lcd.opacity(0.28), lineWidth: 1)
             )
             .overlay(
-                // 玻璃高光：左上斜向一道，别太亮
                 RoundedRectangle(cornerRadius: 14, style: .continuous)
                     .fill(
                         LinearGradient(
-                            colors: [Color.white.opacity(0.07), .clear, Color.white.opacity(0.02)],
+                            colors: [Color.white.opacity(0.06), .clear, Color.white.opacity(0.02)],
                             startPoint: .topLeading, endPoint: .bottomTrailing
                         )
                     )
@@ -84,6 +80,38 @@ struct LCDView: View {
         }
         .aspectRatio(1, contentMode: .fit)
     }
+
+    // MARK: - 字符画回退
+
+    private func drawCharacterArt(_ ctx: GraphicsContext, cell: CGFloat, side: CGFloat) {
+        var minX = grid, maxX = -1, minY = grid, maxY = -1
+        for (y, row) in sprite.enumerated() {
+            for (x, ch) in row.enumerated() where ch == "#" {
+                minX = min(minX, x); maxX = max(maxX, x)
+                minY = min(minY, y); maxY = max(maxY, y)
+            }
+        }
+        guard maxX >= minX else { return }
+
+        let bw = CGFloat(maxX - minX + 1)
+        let bh = CGFloat(maxY - minY + 1)
+        let span = max(bw, bh)
+        let px = cell * 11.0 / span
+        let ox = (side - bw * px) / 2 - CGFloat(minX) * px
+        let oy = (side - bh * px) / 2 - CGFloat(minY) * px
+
+        for (y, row) in sprite.enumerated() {
+            for (x, ch) in row.enumerated() where ch == "#" {
+                let r = CGRect(x: ox + CGFloat(x) * px,
+                               y: oy + CGFloat(y) * px,
+                               width: px, height: px)
+                    .insetBy(dx: px * 0.06, dy: px * 0.06)
+                ctx.fill(Path(r), with: .color(Theme.lcd))
+            }
+        }
+    }
+
+    // MARK: - 角标
 
     private var cornerBadges: some View {
         VStack {
