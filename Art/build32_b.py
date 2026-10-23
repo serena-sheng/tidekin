@@ -18,7 +18,7 @@ OUTLINE = (20, 16, 14, 255)
 
 # 材质三阶：(高光, 中间调, 暗部)，取自 Art/build.py 的配色系
 BODY = {
-    "fire":   ((255, 176, 64), (224, 112, 0), (156, 48, 0)),
+    "fire":   ((255, 176, 64), (224, 112, 0), (178, 44, 28)),
     "cream":  ((255, 255, 255), (234, 232, 224), (176, 176, 168)),
     "blue":   ((90, 176, 224), (42, 122, 176), (24, 72, 112)),
     "cyan":   ((120, 235, 235), (60, 200, 200), (28, 120, 132)),
@@ -33,12 +33,13 @@ FLAT = {
     "eye":    (255, 255, 255, 255),
     "eyered": (255, 90, 80, 255),
     "ink":    (0, 0, 0, 255),
+    "eyeink": (0, 0, 0, 255),
     "mouth":  (88, 16, 18, 255),
     "heart":  (207, 31, 40, 255),
     "claw":   (234, 232, 224, 255),
 }
 
-EYE_MATS = {"eye", "eyered"}
+EYE_MATS = {"eye", "eyered", "eyeink"}
 
 
 class Canvas:
@@ -118,7 +119,6 @@ def airdramon():
     cv.poly([(10, 9), (16, 4), (13, 11)], "blue:horn1")
     cv.poly([(13, 10), (16, 8), (17, 12)], "blue:fin1")
     cv.poly([(15, 14), (19, 12), (20, 18)], "blue:fin2")
-    cv.px(4, 11, "ink")
     cv.rect(6, 9, 7, 10, "eyered")
     cv.rect(3, 13, 8, 13, "mouth")
     return cv
@@ -175,12 +175,12 @@ def metalgreymon():
     cv.rect(12, 21, 18, 22, "metal:belt")
     cv.rect(14, 21, 15, 22, "metal:buckle")
     cv.rect(21, 18, 27, 22, "metal:cannon")
-    cv.rect(24, 18, 24, 22, "metal:band")
-    cv.rect(26, 19, 30, 20, "metal:barrel")
+    cv.rect(28, 19, 30, 20, "metal:barrel")
     cv.rect(30, 19, 30, 20, "ink")
     cv.ellipse(8, 18, 3, 2, "metal:pad")
     cv.rect(4, 19, 8, 24, "fire:arm")
-    cv.poly([(3, 24), (8, 24), (7, 26), (4, 26)], "claw")
+    cv.rect(3, 24, 4, 25, "claw")
+    cv.rect(6, 24, 7, 25, "claw")
     cv.rect(10, 26, 13, 29, "fire:legL")
     cv.rect(17, 26, 20, 29, "fire:legR")
     cv.rect(9, 29, 13, 30, "claw")
@@ -239,8 +239,8 @@ def monzaemon():
     cv.ellipse(16, 14, 4, 2, "cream:muzzle")
     cv.rect(15, 12, 17, 13, "ink")
     cv.px(16, 14, "ink")
-    cv.rect(11, 8, 12, 9, "ink")
-    cv.rect(19, 8, 20, 9, "ink")
+    cv.rect(11, 8, 12, 9, "eyeink")
+    cv.rect(19, 8, 20, 9, "eyeink")
     return cv
 
 
@@ -257,7 +257,7 @@ SPRITES = {
 
 # --------------------------------------------------------------- 渲染
 
-def render(cv, eye_color=None):
+def render(cv, eye_color=None, levels=None):
     lab = cv.im.load()
     out = Image.new("RGBA", (W, H), (0, 0, 0, 0))
     o = out.load()
@@ -291,7 +291,10 @@ def render(cv, eye_color=None):
         hi, base, lo = BODY[key]
         for (x, y) in pts:
             s = 0.6 * (x - cx) / rx + 0.85 * (y - cy) / ry
-            o[x, y] = hi if s < -0.5 else (lo if s > 0.55 else base)
+            col = hi if s < -0.5 else (lo if s > 0.55 else base)
+            o[x, y] = col
+            if levels is not None:
+                levels.setdefault(key, set()).add(col[:3])
 
     # 1px 轮廓：向透明邻域膨胀，保证闭合
     opaque = [[o[x, y][3] > 0 for x in range(W)] for y in range(H)]
@@ -313,10 +316,11 @@ def render(cv, eye_color=None):
 def body_dominant(im):
     from collections import Counter
     c = Counter()
+    eyes = tuple(FLAT[k] for k in EYE_MATS)
     for y in range(H):
         for x in range(W):
             p = im.getpixel((x, y))
-            if p[3] == 0 or p == OUTLINE or p in (FLAT["eye"], FLAT["eyered"]):
+            if p[3] == 0 or p == OUTLINE or p in eyes:
                 continue
             c[p] += 1
     return c.most_common(1)[0][0]
@@ -361,16 +365,20 @@ def check(name, im):
     return len(opaque), len(cols)
 
 
-def shade_report(name, im):
-    """每种材质实际用了几阶，回来调打光阈值。"""
-    from collections import Counter
-    c = Counter()
+def check_blink(name, open_im, blink_im, dom):
+    eyes = tuple(FLAT[k] for k in EYE_MATS)
+    differ = []
     for y in range(H):
         for x in range(W):
-            p = im.getpixel((x, y))
-            if p[3] > 0:
-                c[p] += 1
-    return c
+            a = open_im.getpixel((x, y))
+            b = blink_im.getpixel((x, y))
+            if a != b:
+                differ.append((x, y))
+                assert a in eyes, \
+                    f"{name}_b: non-eye pixel changed at {x},{y}: {a}"
+                assert b == dom, f"{name}_b: eye at {x},{y} -> {b}, want {dom}"
+    assert differ, f"{name}_b: no eye pixels blinked"
+    return len(differ)
 
 
 def main():
@@ -380,15 +388,21 @@ def main():
 
     for name, fn in SPRITES.items():
         cv = fn()
-        im = render(cv)
+        used = {}
+        im = render(cv, levels=used)
         dom = body_dominant(im)
         blink = render(cv, eye_color=dom)
         n, c = check(name, im)
         check(name + "_b", blink)
+        blinked = check_blink(name, im, blink, dom)
+        levels = {fam: len(v) for fam, v in used.items()}
+        for fam, lv in levels.items():
+            assert lv == 3, f"{name}: material {fam} has {lv} levels (need 3)"
         im.save(os.path.join(out_dir, f"{name}32.png"))
         blink.save(os.path.join(out_dir, f"{name}32_b.png"))
         bx = bbox(im)
-        print(f"{name:14s} opaque={n:4d} colors={c:2d} bbox={bx}")
+        print(f"{name:14s} opaque={n:4d} colors={c:2d} bbox={bx} "
+              f"blink={blinked}px -> {dom} levels={levels}")
 
 
 if __name__ == "__main__":
