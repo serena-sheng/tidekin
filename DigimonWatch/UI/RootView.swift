@@ -120,8 +120,10 @@ struct RootView: View {
         case .feed, .train, .clean, .heal: return Theme.warn
         case .none: break
         }
-        if store.world.isAsleep { return Theme.ink.opacity(0.4) }
-        return Theme.lcd
+        if store.world.isAsleep { return Theme.ink.opacity(0.35) }
+        if store.world.stage == .egg { return Theme.ink.opacity(0.6) }
+        // 正常态用白字：绿色是稀缺资源，只给"需要你"和交互
+        return Theme.ink.opacity(0.95)
     }
 
     private var lcd: some View {
@@ -165,7 +167,7 @@ struct RootView: View {
 
     /// 六格位置永远固定，只换视觉：选中是描边，推荐是底色。
     private var actionBar: some View {
-        HStack(spacing: 0) {
+        HStack(spacing: 3) {
             ForEach(Array(Store.actions.enumerated()), id: \.offset) { index, action in
                 cell(index: index, symbol: action.symbol)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -182,21 +184,22 @@ struct RootView: View {
             : (selected || demanded) ? Theme.lcd
             : Theme.ink.opacity(0.55)
 
-        // 选中用底部实心条 + 极淡底，不用整块绿：整块会把视线从宠物身上抢走
-        let fieldColor: Color = demanded ? Theme.lcd.opacity(0.16)
-            : selected ? Theme.ink.opacity(0.06)
+        // 圆角矩形回归：选中用细描边，推荐用淡底。两者都不铺满，绿色不泛滥
+        let fieldColor: Color = demanded ? Theme.lcd.opacity(0.15)
+            : selected ? Theme.ink.opacity(0.07)
             : .clear
 
         return Image(systemName: symbol)
             .font(.system(size: selected ? 15 : 13, weight: .semibold))
             .foregroundStyle(iconColor)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .background(Rectangle().fill(fieldColor))
-            .overlay(alignment: .bottom) {
-                Rectangle()
-                    .fill(selected ? Theme.lcd : .clear)
-                    .frame(height: 2)
-            }
+            .background(
+                RoundedRectangle(cornerRadius: 8, style: .continuous).fill(fieldColor)
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 8, style: .continuous)
+                    .strokeBorder(selected ? Theme.lcd : .clear, lineWidth: 1)
+            )
             .onTapGesture {
                 store.selection = index
                 store.noteCrownMove()

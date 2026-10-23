@@ -17,8 +17,8 @@ struct SegmentMeter: View {
             HStack(spacing: 1) {
                 ForEach(0..<maxValue, id: \.self) { i in
                     Rectangle()
-                        .fill(i < value ? Theme.lcd : Theme.lcdDim)
-                        .frame(width: 5, height: 6)
+                        .fill(i < value ? Theme.lcd.opacity(0.85) : Theme.lcdDim)
+                        .frame(width: 5, height: 5)
                 }
             }
 

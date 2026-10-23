@@ -22,7 +22,7 @@ struct LCDView: View {
             let cell = side / CGFloat(grid)
 
             ZStack {
-                RoundedRectangle(cornerRadius: 6, style: .continuous)
+                RoundedRectangle(cornerRadius: 10, style: .continuous)
                     .fill(Color.black)
 
                 // 像素画要求网格＝像素格；这里不画假网格，让精灵自己承担结构
@@ -53,8 +53,8 @@ struct LCDView: View {
             }
             .frame(width: side, height: side)
             .overlay(
-                RoundedRectangle(cornerRadius: 6, style: .continuous)
-                    .strokeBorder(Theme.lcd.opacity(0.15), lineWidth: 1)
+                RoundedRectangle(cornerRadius: 10, style: .continuous)
+                    .strokeBorder(Theme.lcd.opacity(0.22), lineWidth: 1)
             )
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
