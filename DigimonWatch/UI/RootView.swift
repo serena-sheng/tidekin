@@ -106,34 +106,40 @@ struct CompanionPage: View {
         return Theme.ink.opacity(0.6)
     }
 
+    /// 动作串：横向可滑，一屏露出约 2.8 个。
+    /// 既满足「一行最多 3 个」的可见密度，又不用翻页找次要动作。
     private var actionBar: some View {
-        HStack(spacing: 3) {
-            ForEach(Array(Store.actions.enumerated()), id: \.offset) { index, action in
-                cell(index: index, action: action)
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 6) {
+                ForEach(Store.Action.allCases, id: \.rawValue) { action in
+                    cell(action)
+                        .frame(width: 54)
+                }
             }
         }
+        .frame(maxWidth: .infinity)
         .frame(height: Grid.rowActions)
     }
 
-    private func cell(index: Int, action: (symbol: String, label: String)) -> some View {
-        let demanded = index == store.demandIndex && !store.actionsDisabled
+    private func cell(_ action: Store.Action) -> some View {
+        let demanded = action.rawValue == store.demandIndex && !store.actionsDisabled
         let dimmed = store.actionsDisabled
 
         let iconColor: Color = dimmed ? Theme.ink.opacity(0.3)
             : demanded ? Theme.lcd
-            : Theme.ink.opacity(0.6)
+            : Theme.ink.opacity(0.72)
 
         return Button {
-            store.perform(index)
+            store.perform(action.rawValue)
         } label: {
             Image(systemName: action.symbol)
-                .font(.system(size: 16, weight: .medium))
+                .font(.system(size: 19, weight: .medium))
                 .foregroundStyle(iconColor)
                 .frame(maxWidth: .infinity)
                 .frame(height: Grid.rowActions)
                 .background(
                     RoundedRectangle(cornerRadius: Grid.actionRadius, style: .continuous)
-                        .fill(demanded ? Theme.lcd.opacity(0.16) : Theme.ink.opacity(0.06))
+                        .fill(demanded ? Theme.lcd.opacity(0.16) : Theme.ink.opacity(0.07))
                 )
                 .overlay(
                     RoundedRectangle(cornerRadius: Grid.actionRadius, style: .continuous)
@@ -176,32 +182,37 @@ struct StatusPage: View {
                     .foregroundStyle(Theme.ink.opacity(0.55))
                     .padding(.top, 16)
             } else {
-                VStack(spacing: 10) {
+                VStack(spacing: 7) {
                     bigMeter(glyph: "♥", value: store.world.hunger, label: "HUNGER")
                     bigMeter(symbol: "bolt.fill", value: store.world.strength, label: "POWER")
                 }
-                .padding(.top, 14)
+                .padding(.top, 10)
             }
 
-            Divider().opacity(0.15).padding(.vertical, 10)
+            Spacer(minLength: 8)
 
-            VStack(spacing: 6) {
-                row("AGE", String(format: "%.0f h", store.world.ageHours))
-                row("WEIGHT", "\(store.world.weight) g")
+            Divider().opacity(0.15).padding(.bottom, 9)
+
+            VStack(spacing: 5) {
                 row("BATTLES", "\(store.world.wins)/\(store.world.battles)")
                 row("NEXT", nextText)
             }
-
-            Spacer(minLength: 0)
+            .padding(.bottom, 2)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .padding(.horizontal, Grid.margin)
         .padding(.top, 2)
     }
 
+    private var stageLine: String {
+        if store.world.stage == .egg { return "DIGIEGG" }
+        let h = String(format: "%.0f", store.world.ageHours)
+        return "\(store.world.stage.display) · \(h)h · \(store.world.weight)g"
+    }
+
     private var header: some View {
         VStack(alignment: .leading, spacing: 1) {
-            Text(store.world.stage == .egg ? "DIGIEGG" : store.world.stage.display)
+            Text(stageLine)
                 .font(.system(size: 12, weight: .medium, design: .monospaced))
                 .foregroundStyle(Theme.ink.opacity(0.55))
             Text(store.world.species)
@@ -236,8 +247,44 @@ struct StatusPage: View {
                     .foregroundStyle(Theme.ink.opacity(0.75))
             }
             SegmentMeter(glyph: "", value: value, maxValue: store.world.maxHearts, glyphWidth: 0)
-                .frame(height: 10)
+                .frame(height: 8)
         }
+    }
+
+    /// 战斗与治疗放这一页：打不打要看力量，治不治要看伤，判断依据都在这屏。
+    private var actionRow: some View {
+        HStack(spacing: 6) {
+            actionButton(.battle)
+            actionButton(.heal)
+        }
+    }
+
+    private func actionButton(_ action: Store.Action) -> some View {
+        let demanded = action.rawValue == store.demandIndex && !store.actionsDisabled
+        return Button {
+            store.perform(action.rawValue)
+        } label: {
+            HStack(spacing: 5) {
+                Image(systemName: action.symbol)
+                    .font(.system(size: 15, weight: .medium))
+                Text(action.label)
+                    .font(.system(size: 12, weight: .medium, design: .monospaced))
+            }
+            .foregroundStyle(demanded ? Theme.lcd : Theme.ink.opacity(0.75))
+            .frame(maxWidth: .infinity)
+            .frame(height: Grid.rowActions)
+            .background(
+                RoundedRectangle(cornerRadius: Grid.actionRadius, style: .continuous)
+                    .fill(demanded ? Theme.lcd.opacity(0.16) : Theme.ink.opacity(0.07))
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: Grid.actionRadius, style: .continuous)
+                    .strokeBorder(demanded ? Theme.lcd.opacity(0.55) : .clear, lineWidth: 1)
+            )
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(PressableStyle())
+        .accessibilityLabel(action.label)
     }
 
     private var nextText: String {
@@ -286,8 +333,6 @@ struct RecordsPage: View {
                     row("MISS", "\(store.world.careMistakes)")
                     row("TRAIN", "\(store.world.trainCount)")
                     row("OVRFEED", "\(store.world.overfeed)")
-                    row("WAKEN", "\(store.world.sleepDisturb)")
-                    row("EFFORT", String(format: "%.2f", store.world.effort))
                     row("TOKENS", "\(store.world.totalTokens)")
                 }
             } else {
@@ -297,6 +342,24 @@ struct RecordsPage: View {
             }
 
             Spacer(minLength: 8)
+
+            Button {
+                store.showChat = true
+            } label: {
+                HStack(spacing: 5) {
+                    Image(systemName: Store.Action.talk.symbol)
+                        .font(.system(size: 15, weight: .medium))
+                    Text("TALK")
+                        .font(.system(size: 12, weight: .medium, design: .monospaced))
+                }
+                .frame(maxWidth: .infinity)
+                .frame(height: Grid.rowActions)
+                .background(Theme.ink.opacity(0.07),
+                            in: RoundedRectangle(cornerRadius: Grid.actionRadius, style: .continuous))
+                .foregroundStyle(Theme.ink.opacity(0.75))
+            }
+            .buttonStyle(PressableStyle())
+            .padding(.bottom, 6)
 
             Button {
                 store.showSettings = true
