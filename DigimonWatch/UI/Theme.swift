@@ -32,11 +32,11 @@ enum Grid {
 
     static let rowHeader: CGFloat = 38
     static let rowCard: CGFloat = 120
-    static let rowActions: CGFloat = 42
+    static let rowActions: CGFloat = 40
 
     /// 动作格
     static let actionWidth: CGFloat = 28
-    static let actionRadius: CGFloat = 12
+    static let actionRadius: CGFloat = 10
     static let actionGap: CGFloat = 4
 
     /// 卡内

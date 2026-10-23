@@ -3,7 +3,6 @@ import WatchKit
 
 struct RootView: View {
     @StateObject private var store = Store()
-    @State private var crownValue: Double = 0
     @Environment(\.scenePhase) private var phase
 
     var body: some View {
@@ -11,16 +10,11 @@ struct RootView: View {
             if store.world.isDead {
                 GoneView(store: store)
             } else {
-                mainScreen
+                pages
             }
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-        .background(Color.black)
         .sheet(item: $store.away) { summary in
             AwaySummaryView(summary: summary, store: store)
-        }
-        .sheet(isPresented: $store.showDetail) {
-            NavigationStack { DetailView(store: store) }
         }
         .sheet(isPresented: $store.showChat) {
             NavigationStack { ChatView(store: store) }
@@ -33,6 +27,9 @@ struct RootView: View {
         }
         .task {
             if UserDefaults.standard.bool(forKey: "debugBattle") { store.startBattle() }
+            if UserDefaults.standard.object(forKey: "debugPage") != nil {
+                store.page = UserDefaults.standard.integer(forKey: "debugPage")
+            }
             store.tick()
             await store.syncHealth()
             while !Task.isCancelled {
@@ -42,70 +39,62 @@ struct RootView: View {
         }
     }
 
-    // MARK: - 主屏
+    /// 三页：伴侣（美术）→ 状态（数据）→ 记录（低频）。
+    /// Crown 用来翻页，这是 watchOS 的既定语法；动作改成点按直接执行。
+    private var pages: some View {
+        ZStack(alignment: .bottom) {
+            TabView(selection: $store.page) {
+                CompanionPage(store: store).tag(0)
+                StatusPage(store: store).tag(1)
+                RecordsPage(store: store).tag(2)
+            }
+            .tabViewStyle(.verticalPage)
 
-    private var mainScreen: some View {
-        VStack(spacing: Grid.gap) {
-            header.frame(height: Grid.rowHeader, alignment: .top)
-            card.frame(height: Grid.rowCard)
-            actionBar.frame(height: Grid.rowActions)
+            // 世界事件与玩家动作的反馈挂在三页之外，翻到哪一页都看得见
+            if let toast = store.toast {
+                Text(toast.uppercased())
+                    .font(.system(size: 12, weight: .medium, design: .monospaced))
+                    .foregroundStyle(Theme.ink.opacity(0.92))
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 4)
+                    .background(.black.opacity(0.72), in: Capsule())
+                    .padding(.bottom, 6)
+                    .transition(.opacity)
+                    .allowsHitTesting(false)
+            }
         }
+        .containerBackground(for: .tabView) { Color.black }
+    }
+}
+
+// MARK: - 第一页：伴侣
+
+/// 第一屏只做一件事：让宠物成为画面本身。
+struct CompanionPage: View {
+    @ObservedObject var store: Store
+
+    var body: some View {
+        VStack(spacing: 0) {
+            Text(store.world.headline)
+                .font(.system(size: 12, weight: .medium, design: .monospaced))
+                .foregroundStyle(headlineColor)
+                .lineLimit(1)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .animation(.easeOut(duration: 0.18), value: store.world.headline)
+
+            LCDView(world: store.world, showMeters: false, spriteMax: 140)
+                .frame(maxHeight: .infinity)
+                .padding(.top, 7)
+                .contentShape(Rectangle())
+                .onTapGesture { store.tapCreature() }
+
+            actionBar
+                .padding(.top, 9)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .padding(.horizontal, Grid.margin)
-        .padding(.top, 10)
-        .digitalCrownRotation(
-            $crownValue,
-            from: 0, through: Double(Store.actions.count - 1), by: 1,
-            sensitivity: .low, isContinuous: false, isHapticFeedbackEnabled: true
-        )
-        .onChange(of: crownValue) { _, new in
-            let idx = Int(new.rounded())
-            if idx != store.selection {
-                withAnimation(.easeOut(duration: 0.12)) { store.selection = idx }
-                store.noteCrownMove()
-                Haptics.tap()
-            }
-        }
-        .onChange(of: store.selection) { _, new in
-            if abs(crownValue - Double(new)) > 0.5 { crownValue = Double(new) }
-        }
-    }
-
-    /// 两行：安静的身份在上，世界的状态在下，字号断层就是层级。
-    private var header: some View {
-        VStack(alignment: .leading, spacing: 1) {
-            Button {
-                store.showDetail = true
-            } label: {
-                Text(worldTitle)
-                    .font(.system(size: 12, weight: .medium, design: .monospaced))
-                    .foregroundStyle(Theme.ink.opacity(0.55))
-                    .lineLimit(1)
-            }
-            .buttonStyle(.plain)
-
-            // 状态词与倒计时同一行：避开状态栏的时钟，也把两件事并成一条视线
-            HStack(alignment: .firstTextBaseline, spacing: 6) {
-                Text(store.world.headline)
-                    .font(.system(size: 20, weight: .semibold, design: .rounded))
-                    .foregroundStyle(headlineColor)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.7)
-                    .animation(.easeOut(duration: 0.18), value: store.world.headline)
-
-                Spacer(minLength: 2)
-
-                Text(store.world.progressText)
-                    .font(.system(size: 12, weight: .medium, design: .monospaced))
-                    .monospacedDigit()
-                    .foregroundStyle(Theme.ink.opacity(0.5))
-                    .lineLimit(1)
-            }
-        }
-    }
-
-    private var worldTitle: String {
-        if store.world.stage == .egg { return "DIGIEGG" }
-        return "\(store.world.species) · \(store.world.stage.display)"
+        .padding(.top, 2)
+        .padding(.bottom, 2)
     }
 
     private var headlineColor: Color {
@@ -113,117 +102,150 @@ struct RootView: View {
         case .feed, .train, .clean, .heal: return Theme.warn
         case .none: break
         }
-        if store.world.isAsleep { return Theme.ink.opacity(0.45) }
-        return Theme.ink.opacity(0.92)
+        if store.world.isAsleep { return Theme.ink.opacity(0.55) }
+        return Theme.ink.opacity(0.6)
     }
 
-    private var card: some View {
-        LCDView(world: store.world)
-            .overlay(alignment: .bottom) {
-                if let toast = store.toast {
-                    Text(toast.uppercased())
-                        .font(.system(size: 11, weight: .medium, design: .monospaced))
-                        .foregroundStyle(Theme.ink.opacity(0.9))
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 3)
-                        .background(.black.opacity(0.55), in: Capsule())
-                        .padding(.bottom, 10)
-                        .transition(.opacity)
-                }
-            }
-            .contentShape(Rectangle())
-            .onTapGesture { store.perform(store.selection) }
-    }
-
-    /// 六格固定：选中＝淡填充，需求＝细环。绿色只在这两处出现。
     private var actionBar: some View {
-        HStack(spacing: Grid.actionGap) {
+        HStack(spacing: 3) {
             ForEach(Array(Store.actions.enumerated()), id: \.offset) { index, action in
-                cell(index: index, symbol: action.symbol)
+                cell(index: index, action: action)
             }
         }
+        .frame(height: Grid.rowActions)
     }
 
-    private func cell(index: Int, symbol: String) -> some View {
-        let selected = index == store.selection
+    private func cell(index: Int, action: (symbol: String, label: String)) -> some View {
         let demanded = index == store.demandIndex && !store.actionsDisabled
         let dimmed = store.actionsDisabled
 
-        let iconColor: Color = dimmed ? Theme.lcdDim
+        let iconColor: Color = dimmed ? Theme.ink.opacity(0.3)
             : demanded ? Theme.lcd
-            : selected ? Color(red: 0.78, green: 0.93, blue: 0.75)
-            : Theme.ink.opacity(0.5)
+            : Theme.ink.opacity(0.6)
 
-        return Image(systemName: symbol)
-            .font(.system(size: selected ? 16 : 14, weight: .medium))
-            .foregroundStyle(iconColor)
-            .frame(width: Grid.actionWidth, height: Grid.rowActions)
-            .background(
-                RoundedRectangle(cornerRadius: Grid.actionRadius, style: .continuous)
-                    .fill(selected ? Theme.lcd.opacity(0.16) : .clear)
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: Grid.actionRadius, style: .continuous)
-                    .strokeBorder(demanded ? Theme.lcd.opacity(0.55) : .clear, lineWidth: 1)
-            )
-            .contentShape(Rectangle())
-            .onTapGesture {
-                withAnimation(.easeOut(duration: 0.12)) { store.selection = index }
-                store.noteCrownMove()
-                store.perform(index)
-            }
+        return Button {
+            store.perform(index)
+        } label: {
+            Image(systemName: action.symbol)
+                .font(.system(size: 16, weight: .medium))
+                .foregroundStyle(iconColor)
+                .frame(maxWidth: .infinity)
+                .frame(height: Grid.rowActions)
+                .background(
+                    RoundedRectangle(cornerRadius: Grid.actionRadius, style: .continuous)
+                        .fill(demanded ? Theme.lcd.opacity(0.16) : Theme.ink.opacity(0.06))
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: Grid.actionRadius, style: .continuous)
+                        .strokeBorder(demanded ? Theme.lcd.opacity(0.55) : .clear, lineWidth: 1)
+                )
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(PressableStyle())
+        .accessibilityLabel(action.label)
     }
 }
 
-// MARK: - 详情
+/// 按压态：HIG 要求自定义按钮必须有可见反馈。
+struct PressableStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .scaleEffect(configuration.isPressed ? 0.94 : 1)
+            .opacity(configuration.isPressed ? 0.8 : 1)
+            .animation(.easeOut(duration: 0.1), value: configuration.isPressed)
+    }
+}
 
-struct DetailView: View {
+// MARK: - 第二页：状态
+
+struct StatusPage: View {
     @ObservedObject var store: Store
-    @State private var askedNotifications = false
 
     var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 6) {
-                row("STAGE", store.world.stage.display)
-                row("AGE", String(format: "%.1f h", store.world.ageHours))
+        VStack(alignment: .leading, spacing: 0) {
+            header
+
+            if store.world.stage == .egg {
+                Text("HATCHING")
+                    .font(.system(size: 13, weight: .medium, design: .monospaced))
+                    .foregroundStyle(Theme.ink.opacity(0.55))
+                    .padding(.top, 16)
+            } else if store.world.isAsleep {
+                Text("ASLEEP · WAKES 07:00")
+                    .font(.system(size: 13, weight: .medium, design: .monospaced))
+                    .foregroundStyle(Theme.ink.opacity(0.55))
+                    .padding(.top, 16)
+            } else {
+                VStack(spacing: 10) {
+                    bigMeter(glyph: "♥", value: store.world.hunger, label: "HUNGER")
+                    bigMeter(symbol: "bolt.fill", value: store.world.strength, label: "POWER")
+                }
+                .padding(.top, 14)
+            }
+
+            Divider().opacity(0.15).padding(.vertical, 10)
+
+            VStack(spacing: 6) {
+                row("AGE", String(format: "%.0f h", store.world.ageHours))
                 row("WEIGHT", "\(store.world.weight) g")
-                row("EFFORT", String(format: "%.2f", store.world.effort))
                 row("BATTLES", "\(store.world.wins)/\(store.world.battles)")
-                row("INJURY", "\(store.world.injured)/20")
                 row("NEXT", nextText)
-
-                Divider().padding(.vertical, 2)
-
-                Text("HIDDEN")
-                    .font(.system(size: 11, weight: .semibold, design: .monospaced))
-                    .foregroundStyle(Theme.ink.opacity(0.45))
-                row("MISS", "\(store.world.careMistakes)")
-                row("TRAIN", "\(store.world.trainCount)")
-                row("OVRF", "\(store.world.overfeed)")
-                row("WKDN", "\(store.world.sleepDisturb)")
-
-                Divider()
-
-                NavigationLink("SETUP") { SettingsView(store: store) }
-                    .font(.system(size: 12, weight: .bold, design: .monospaced))
-                    .tint(Theme.lcd)
             }
-            .padding(.horizontal, 4)
+
+            Spacer(minLength: 0)
         }
-        .onAppear {
-            if !askedNotifications {
-                askedNotifications = true
-                Notifier.requestPermission()
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+        .padding(.horizontal, Grid.margin)
+        .padding(.top, 2)
+    }
+
+    private var header: some View {
+        VStack(alignment: .leading, spacing: 1) {
+            Text(store.world.stage == .egg ? "DIGIEGG" : store.world.stage.display)
+                .font(.system(size: 12, weight: .medium, design: .monospaced))
+                .foregroundStyle(Theme.ink.opacity(0.55))
+            Text(store.world.species)
+                .font(.system(size: 22, weight: .semibold, design: .rounded))
+                .foregroundStyle(Theme.ink.opacity(0.92))
+                .lineLimit(1)
+                .minimumScaleFactor(0.7)
+        }
+    }
+
+    private func bigMeter(glyph: String? = nil, symbol: String? = nil,
+                          value: Int, label: String) -> some View {
+        VStack(alignment: .leading, spacing: 3) {
+            HStack(spacing: 5) {
+                if let glyph {
+                    Text(glyph)
+                        .font(.system(size: 12, weight: .bold, design: .monospaced))
+                        .foregroundStyle(Theme.ink.opacity(0.55))
+                }
+                if let symbol {
+                    Image(systemName: symbol)
+                        .font(.system(size: 11, weight: .semibold))
+                        .foregroundStyle(Theme.ink.opacity(0.55))
+                }
+                Text(label)
+                    .font(.system(size: 12, weight: .medium, design: .monospaced))
+                    .foregroundStyle(Theme.ink.opacity(0.55))
+                Spacer(minLength: 0)
+                Text("\(value)/\(store.world.maxHearts)")
+                    .font(.system(size: 12, weight: .medium, design: .monospaced))
+                    .monospacedDigit()
+                    .foregroundStyle(Theme.ink.opacity(0.75))
             }
+            SegmentMeter(glyph: "", value: value, maxValue: store.world.maxHearts, glyphWidth: 0)
+                .frame(height: 10)
         }
     }
 
     private var nextText: String {
         if let need = store.world.battlesToPerfect, need > 0 {
-            return "\(need) FIGHTS"
+            return "\(need) fights"
         }
         guard let m = store.world.minutesToEvolution, let next = store.world.nextStage else {
-            return "MAX"
+            return "max"
         }
         return m < 60 ? "\(next.display) \(m)m" : "\(next.display) \(m / 60)h"
     }
@@ -232,7 +254,75 @@ struct DetailView: View {
         HStack {
             Text(k)
                 .font(.system(size: 12, weight: .medium, design: .monospaced))
-                .foregroundStyle(Theme.ink.opacity(0.45))
+                .foregroundStyle(Theme.ink.opacity(0.55))
+            Spacer()
+            Text(v)
+                .font(.system(size: 13, weight: .medium, design: .monospaced))
+                .monospacedDigit()
+                .foregroundStyle(Theme.ink.opacity(0.85))
+        }
+    }
+}
+
+// MARK: - 第三页：记录与入口
+
+struct RecordsPage: View {
+    @ObservedObject var store: Store
+
+    private var hasRecords: Bool {
+        let w = store.world
+        return w.careMistakes + w.trainCount + w.overfeed + w.sleepDisturb + w.totalTokens > 0
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            Text("RECORDS")
+                .font(.system(size: 12, weight: .medium, design: .monospaced))
+                .foregroundStyle(Theme.ink.opacity(0.55))
+                .padding(.bottom, 10)
+
+            if hasRecords {
+                VStack(spacing: 6) {
+                    row("MISS", "\(store.world.careMistakes)")
+                    row("TRAIN", "\(store.world.trainCount)")
+                    row("OVRFEED", "\(store.world.overfeed)")
+                    row("WAKEN", "\(store.world.sleepDisturb)")
+                    row("EFFORT", String(format: "%.2f", store.world.effort))
+                    row("TOKENS", "\(store.world.totalTokens)")
+                }
+            } else {
+                Text("NO RECORDS YET")
+                    .font(.system(size: 12, weight: .medium, design: .monospaced))
+                    .foregroundStyle(Theme.ink.opacity(0.4))
+            }
+
+            Spacer(minLength: 8)
+
+            Button {
+                store.showSettings = true
+            } label: {
+                Text("SETUP")
+                    .font(.system(size: 13, weight: .semibold, design: .monospaced))
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 9)
+                    .background(Theme.panel, in: Capsule())
+                    .foregroundStyle(Theme.ink.opacity(0.85))
+            }
+            .buttonStyle(PressableStyle())
+            .sheet(isPresented: $store.showSettings) {
+                NavigationStack { SettingsView(store: store) }
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+        .padding(.horizontal, Grid.margin)
+        .padding(.top, 2)
+    }
+
+    private func row(_ k: String, _ v: String) -> some View {
+        HStack {
+            Text(k)
+                .font(.system(size: 12, weight: .medium, design: .monospaced))
+                .foregroundStyle(Theme.ink.opacity(0.55))
             Spacer()
             Text(v)
                 .font(.system(size: 13, weight: .medium, design: .monospaced))

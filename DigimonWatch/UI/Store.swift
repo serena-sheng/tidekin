@@ -21,9 +21,9 @@ struct AwaySummary: Identifiable {
 @MainActor
 final class Store: ObservableObject {
     @Published private(set) var world: World
-    @Published var selection: Int = 0
+    @Published var page: Int = 0
     @Published var toast: String?
-    @Published var showDetail = false
+    @Published var showSettings = false
     @Published var showChat = false
     @Published var showBattle = false
     @Published var battle: BattleState?
@@ -38,10 +38,10 @@ final class Store: ObservableObject {
     @Published var chatError: String?
 
     private var lastScheduled: Date?
+    private var askedForNotifications = false
     private var pendingAway: TimeInterval?
     private var toastQueue: [String] = []
     private var toastToken = 0
-    private var lastCrownMove = Date.distantPast
 
     enum Action: Int, CaseIterable {
         case feed, train, battle, talk, clean, heal
@@ -101,8 +101,6 @@ final class Store: ObservableObject {
         world.isDead || world.isAsleep || world.stage == .egg
     }
 
-    var selectedAction: Action { Action(rawValue: selection) ?? .feed }
-
     // MARK: - 世界推进
 
     func tick() {
@@ -151,6 +149,13 @@ final class Store: ObservableObject {
                            died: died)
     }
 
+    /// 点宠物本体：只回应它此刻的需求，没有需求就不动。
+    /// 原来是 perform(selection)，而 selection 恒为 0，等于隐形过量喂食。
+    func tapCreature() {
+        guard let demand = demandIndex else { return }
+        perform(demand)
+    }
+
     func perform(_ index: Int) {
         guard !actionsDisabled else {
             if world.isAsleep { flash("ASLEEP · WAKES 07:00", world: false) }
@@ -172,6 +177,10 @@ final class Store: ObservableObject {
         Persistence.save(world)
         rescheduleIfNeeded(force: true)
         Haptics.tap()
+        if !askedForNotifications {
+            askedForNotifications = true
+            Notifier.requestPermission()
+        }
     }
 
     func rescheduleIfNeeded(force: Bool = false) {
@@ -265,6 +274,7 @@ final class Store: ObservableObject {
     func tapNewEgg() {
         if newEggArmed {
             world = .newGame(at: Date())
+            page = 0
             Persistence.save(world)
             newEggArmed = false
             away = nil
@@ -310,14 +320,6 @@ final class Store: ObservableObject {
         }
     }
 
-    /// 玩家转动表冠时记一笔，用于抑制"自动搬游标"的误读
-    func noteCrownMove() {
-        lastCrownMove = Date()
-    }
-
-    var canAutoMoveSelection: Bool {
-        Date().timeIntervalSince(lastCrownMove) > 2
-    }
 }
 
 enum Haptics {
