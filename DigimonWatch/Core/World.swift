@@ -108,6 +108,56 @@ struct World: Codable {
 
     var nextStage: Stage? { stage.next }
 
+    /// 世界在向玩家要什么。优先级：死亡 > 受伤 > 便便超限 > 饿 > 力竭。
+    /// 注意与「选中」区分：这是需求，不是游标。
+    enum Demand: String {
+        case none, feed, train, clean, heal
+    }
+
+    var demand: Demand {
+        if isDead || isAsleep || stage == .egg { return .none }
+        if injured > 0 { return .heal }
+        if poop > tuning.maxPoop { return .clean }
+        if hunger == 0 { return .feed }
+        if strength == 0 { return .train }
+        return .none
+    }
+
+    /// Perfect 只差多少场；nil 表示还差胜率或不在成人期。
+    var battlesToPerfect: Int? {
+        guard stage == .adult else { return nil }
+        return battles < 15 ? 15 - battles : nil
+    }
+
+    /// 主屏右上角的"还有多久"。成人期先看战斗条件，再看时间。
+    var progressText: String {
+        if isDead { return "" }
+        if stage == .egg { return "" }
+        if stage == .perfect { return "MAX" }
+        if let need = battlesToPerfect, need > 0 { return "\(need) FIGHTS" }
+        if stage == .adult, battles >= 15, winRate < 0.4 { return "WIN MORE" }
+        guard let m = minutesToEvolution else { return "MAX" }
+        if m < 60 { return "\(m)m" }
+        return "\(m / 60)h\(m % 60 == 0 ? "" : "\(m % 60 / 6 * 10)m")"
+    }
+
+    /// 主屏第二行：需求优先，没有需求才报心情。
+    var headline: String {
+        switch demand {
+        case .feed: return "FEED ME"
+        case .train: return "TRAIN ME"
+        case .clean: return "CLEAN ME"
+        case .heal: return "HEAL ME"
+        case .none: break
+        }
+        if isDead { return "GONE" }
+        if stage == .egg { return "HATCHING" }
+        if isAsleep { return "ASLEEP" }
+        if callKind.isActive { return "CALLING" }
+        if hunger <= 1 || strength <= 1 { return "PECKISH" }
+        return "FINE"
+    }
+
     var mood: String {
         if isDead { return "GONE" }
         if stage == .egg { return "HATCHING" }

@@ -22,37 +22,16 @@ struct LCDView: View {
             let cell = side / CGFloat(grid)
 
             ZStack {
-                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                RoundedRectangle(cornerRadius: 6, style: .continuous)
                     .fill(Color.black)
 
-                // 极淡网格：给彩色像素一点"屏幕"质感，但不跟精灵抢注意力
-                Canvas { ctx, size in
-                    var path = Path()
-                    for i in 1..<grid {
-                        let x = CGFloat(i) * cell
-                        path.move(to: CGPoint(x: x, y: 0))
-                        path.addLine(to: CGPoint(x: x, y: size.height))
-                        let y = CGFloat(i) * cell
-                        path.move(to: CGPoint(x: 0, y: y))
-                        path.addLine(to: CGPoint(x: size.width, y: y))
-                    }
-                    ctx.stroke(path, with: .color(Theme.lcdDim.opacity(0.22)), lineWidth: 0.5)
-                }
-                .frame(width: side, height: side)
-
+                // 像素画要求网格＝像素格；这里不画假网格，让精灵自己承担结构
                 if let bitmap {
-                    // 极淡背光：Botamon 这类深色精灵在黑底上几乎没有轮廓
-                    RadialGradient(
-                        colors: [Color.white.opacity(0.07), .clear],
-                        center: .center, startRadius: 0, endRadius: side * 0.45
-                    )
-                    .allowsHitTesting(false)
-
                     Image(uiImage: bitmap)
                         .resizable()
                         .interpolation(.none)
                         .scaledToFit()
-                        .padding(cell * 0.35)
+                        
                 } else {
                     Canvas { ctx, _ in
                         drawCharacterArt(ctx, cell: cell, side: side)
@@ -63,22 +42,13 @@ struct LCDView: View {
                 cornerBadges
                     .padding(7)
             }
+            .frame(width: side, height: side)
             .overlay(
-                RoundedRectangle(cornerRadius: 14, style: .continuous)
-                    .strokeBorder(Theme.lcd.opacity(0.28), lineWidth: 1)
+                RoundedRectangle(cornerRadius: 6, style: .continuous)
+                    .strokeBorder(Theme.lcd.opacity(0.15), lineWidth: 1)
             )
-            .overlay(
-                RoundedRectangle(cornerRadius: 14, style: .continuous)
-                    .fill(
-                        LinearGradient(
-                            colors: [Color.white.opacity(0.06), .clear, Color.white.opacity(0.02)],
-                            startPoint: .topLeading, endPoint: .bottomTrailing
-                        )
-                    )
-                    .allowsHitTesting(false)
-            )
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
-        .aspectRatio(1, contentMode: .fit)
     }
 
     // MARK: - 字符画回退
@@ -149,24 +119,3 @@ struct LCDView: View {
     }
 }
 
-/// 心形计量条：点亮用液晶绿而非红色，保持整机只有一个色系。
-struct HeartMeter: View {
-    let label: String
-    let value: Int
-    let maxValue: Int
-
-    var body: some View {
-        HStack(spacing: 3) {
-            Text(label)
-                .font(.system(size: 8, weight: .bold, design: .monospaced))
-                .foregroundStyle(Theme.ink.opacity(0.35))
-                .frame(width: 26, alignment: .leading)
-            ForEach(0..<maxValue, id: \.self) { i in
-                Image(systemName: "heart.fill")
-                    .font(.system(size: 6.5))
-                    .foregroundStyle(i < value ? Theme.lcd : Theme.ink.opacity(0.12))
-            }
-            Spacer(minLength: 0)
-        }
-    }
-}

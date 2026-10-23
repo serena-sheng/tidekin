@@ -7,30 +7,53 @@ struct RootView: View {
     @Environment(\.scenePhase) private var phase
 
     var body: some View {
-        VStack(spacing: 6) {
+        Group {
+            if store.world.isDead {
+                GoneView(store: store)
+            } else {
+                mainScreen
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+        .background(Color.black)
+        .sheet(item: $store.away) { summary in
+            AwaySummaryView(summary: summary, store: store)
+        }
+        .sheet(isPresented: $store.showDetail) {
+            NavigationStack { DetailView(store: store) }
+        }
+        .sheet(isPresented: $store.showChat) {
+            NavigationStack { ChatView(store: store) }
+        }
+        .sheet(isPresented: $store.showBattle) {
+            BattleView(store: store)
+        }
+        .onChange(of: phase) { _, new in
+            if new == .active { store.tick() }
+        }
+        .task {
+            if UserDefaults.standard.bool(forKey: "debugBattle") { store.startBattle() }
+            store.tick()
+            await store.syncHealth()
+            while !Task.isCancelled {
+                try? await Task.sleep(for: .seconds(10))
+                store.tick()
+            }
+        }
+    }
+
+    // MARK: - 主屏
+
+    private var mainScreen: some View {
+        VStack(spacing: 4) {
             header
-            LCDView(world: store.world)
-                .overlay(alignment: .bottom) {
-                    if let toast = store.toast {
-                        Text(toast.uppercased())
-                            .font(.system(size: 8, weight: .bold, design: .monospaced))
-                            .foregroundStyle(Theme.lcd)
-                            .padding(.horizontal, 7)
-                            .padding(.vertical, 3)
-                            .background(.black.opacity(0.8), in: Capsule())
-                            .padding(.bottom, 8)
-                            .transition(.opacity)
-                    }
-                }
-                .contentShape(Rectangle())
-                .onTapGesture { store.perform(store.selection) }
-                .onLongPressGesture { store.startBattle() }
+            lcd
             meters
             actionBar
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
         .padding(.horizontal, 6)
-        .padding(.vertical, 4)
-        .background(Color.black)
+        .padding(.vertical, 2)
         .digitalCrownRotation(
             $crownValue,
             from: 0, through: Double(Store.actions.count - 1), by: 1,
@@ -40,102 +63,149 @@ struct RootView: View {
             let idx = Int(new.rounded())
             if idx != store.selection {
                 store.selection = idx
+                store.noteCrownMove()
                 Haptics.tap()
             }
         }
         .onChange(of: store.selection) { _, new in
             if abs(crownValue - Double(new)) > 0.5 { crownValue = Double(new) }
         }
-        .onChange(of: phase) { _, new in
-            if new == .active { store.tick() }
-        }
-        .task {
-            // 调试用：xcrun simctl launch <dev> <bundle> -debugBattle YES
-            if UserDefaults.standard.bool(forKey: "debugBattle") {
-                store.startBattle()
-            }
-            store.tick()
-            await store.syncHealth()
-            while !Task.isCancelled {
-                try? await Task.sleep(for: .seconds(10))
-                store.tick()
-            }
-        }
-        .sheet(isPresented: $store.showDetail) {
-            DetailView(store: store)
-        }
-        .sheet(isPresented: $store.showChat) {
-            NavigationStack { ChatView(store: store) }
-        }
-        .sheet(isPresented: $store.showBattle) {
-            BattleView(store: store)
-        }
     }
 
+    /// 第一行是安静的身份，第二行是世界在说什么，右边是还差多久。
     private var header: some View {
-        HStack(alignment: .firstTextBaseline, spacing: 5) {
-            Text(store.world.species)
-                .font(.system(size: 12, weight: .heavy, design: .monospaced))
-                .foregroundStyle(Theme.ink)
-                .lineLimit(1)
-                .minimumScaleFactor(0.6)
-            if store.world.stage != .egg {
-                Text(store.world.stage.display)
-                    .font(.system(size: 7, weight: .bold, design: .monospaced))
-                    .foregroundStyle(Theme.ink.opacity(0.3))
+        VStack(alignment: .leading, spacing: 1) {
+            HStack(alignment: .firstTextBaseline, spacing: 4) {
+                Button {
+                    store.showDetail = true
+                } label: {
+                    Text(worldTitle)
+                        .font(.system(size: 10, weight: .semibold, design: .monospaced))
+                        .foregroundStyle(Theme.ink.opacity(0.6))
+                        .lineLimit(1)
+                }
+                .buttonStyle(.plain)
+
+                Spacer(minLength: 2)
+
+                Text(store.world.progressText)
+                    .font(.system(size: 11, weight: .medium, design: .monospaced))
+                    .monospacedDigit()
+                    .foregroundStyle(Theme.ink.opacity(0.65))
                     .lineLimit(1)
             }
-            Spacer(minLength: 4)
-            Text(store.world.mood)
-                .font(.system(size: 8, weight: .semibold, design: .monospaced))
-                .foregroundStyle(moodColor)
+            HStack(alignment: .firstTextBaseline) {
+                Text(store.world.headline)
+                    .font(.system(size: 15, weight: .heavy, design: .monospaced))
+                    .foregroundStyle(headlineColor)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.8)
+                Spacer(minLength: 4)
+                if store.world.stage != .egg {
+                    Text(store.selectedAction.label)
+                        .font(.system(size: 9, weight: .bold, design: .monospaced))
+                        .foregroundStyle(Theme.ink.opacity(0.35))
+                }
+            }
         }
     }
 
-    private var moodColor: Color {
-        switch store.world.mood {
-        case "CALLING", "HURT", "GONE": return Theme.danger
-        case "HUNGRY", "PECKISH", "SMELLY": return Theme.warn
-        default: return Theme.lcd
+    private var worldTitle: String {
+        if store.world.stage == .egg { return "DIGIEGG" }
+        return "\(store.world.species) · \(store.world.stage.display)"
+    }
+
+    private var headlineColor: Color {
+        switch store.world.demand {
+        case .feed, .train, .clean, .heal: return Theme.warn
+        case .none: break
         }
+        if store.world.isAsleep { return Theme.ink.opacity(0.4) }
+        return Theme.lcd
+    }
+
+    private var lcd: some View {
+        LCDView(world: store.world)
+            .frame(height: 110)
+            .overlay(alignment: .bottom) {
+                if let toast = store.toast {
+                    Text(toast.uppercased())
+                        .font(.system(size: 8, weight: .bold, design: .monospaced))
+                        .foregroundStyle(Theme.lcd)
+                        .padding(.horizontal, 7)
+                        .padding(.vertical, 3)
+                        .background(.black.opacity(0.85), in: Capsule())
+                        .padding(.bottom, 8)
+                        .transition(.opacity)
+                }
+            }
+            .contentShape(Rectangle())
+            .onTapGesture { store.perform(store.selection) }
     }
 
     @ViewBuilder
     private var meters: some View {
         if store.world.stage == .egg {
-            Text("HATCHING...")
-                .font(.system(size: 8, weight: .bold, design: .monospaced))
-                .foregroundStyle(Theme.ink.opacity(0.25))
-                .frame(height: 20)
+            VStack(spacing: 1) {
+                Text("THIS IS YOUR DIGIEGG")
+                    .font(.system(size: 9, weight: .semibold, design: .monospaced))
+                    .foregroundStyle(Theme.ink.opacity(0.4))
+                Text("HATCHES IN A MINUTE")
+                    .font(.system(size: 8, design: .monospaced))
+                    .foregroundStyle(Theme.ink.opacity(0.25))
+            }
+            .frame(height: 22)
         } else {
-            VStack(spacing: 2) {
-                HeartMeter(label: "HNG", value: store.world.hunger, maxValue: store.world.maxHearts)
-                HeartMeter(label: "PWR", value: store.world.strength, maxValue: store.world.maxHearts)
+            VStack(spacing: 1) {
+                SegmentMeter(glyph: "♥", value: store.world.hunger, maxValue: store.world.maxHearts)
+                SegmentMeter(glyph: "⚡", value: store.world.strength, maxValue: store.world.maxHearts)
             }
         }
     }
 
+    /// 六格位置永远固定，只换视觉：选中是描边，推荐是底色。
     private var actionBar: some View {
         HStack(spacing: 3) {
             ForEach(Array(Store.actions.enumerated()), id: \.offset) { index, action in
-                let selected = index == store.selection
-                Image(systemName: action.symbol)
-                    .font(.system(size: selected ? 15 : 12, weight: .semibold))
-                    .foregroundStyle(selected ? Color.black : Theme.ink.opacity(0.5))
-                    .frame(width: 25, height: 24)
-                    .background(
-                        RoundedRectangle(cornerRadius: 7, style: .continuous)
-                            .fill(selected ? Theme.lcd : Theme.panel)
-                    )
-                    .onTapGesture {
-                        store.selection = index
-                        store.perform(index)
-                    }
+                cell(index: index, symbol: action.symbol)
             }
         }
-        .padding(.top, 2)
+        .padding(.top, 1)
+    }
+
+    private func cell(index: Int, symbol: String) -> some View {
+        let selected = index == store.selection
+        let demanded = index == store.demandIndex && !store.actionsDisabled
+        let dimmed = store.actionsDisabled
+
+        let iconColor: Color = dimmed ? Theme.lcdDim
+            : demanded ? Theme.lcd
+            : selected ? Theme.ink
+            : Theme.ink.opacity(0.55)
+
+        return Image(systemName: symbol)
+            .font(.system(size: selected ? 14 : 12, weight: .semibold))
+            .foregroundStyle(iconColor)
+            .frame(width: 25, height: 23)
+            .background(
+                RoundedRectangle(cornerRadius: 7, style: .continuous)
+                    .fill(demanded ? Theme.lcd.opacity(0.2)
+                          : selected ? Theme.ink.opacity(0.08)
+                          : Theme.panel)
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 7, style: .continuous)
+                    .strokeBorder(selected ? Theme.lcd : .clear, lineWidth: 1)
+            )
+            .onTapGesture {
+                store.selection = index
+                store.noteCrownMove()
+                store.perform(index)
+            }
     }
 }
+
+// MARK: - 详情
 
 struct DetailView: View {
     @ObservedObject var store: Store
@@ -148,9 +218,9 @@ struct DetailView: View {
                 row("AGE", String(format: "%.1f h", store.world.ageHours))
                 row("WEIGHT", "\(store.world.weight) g")
                 row("EFFORT", String(format: "%.2f", store.world.effort))
-                row("BATTLES", "\(store.world.battles)")
+                row("BATTLES", "\(store.world.wins)/\(store.world.battles)")
                 row("INJURY", "\(store.world.injured)/20")
-                row("NEXT", nextEvolutionText)
+                row("NEXT", nextText)
 
                 Divider().padding(.vertical, 2)
 
@@ -162,38 +232,15 @@ struct DetailView: View {
                 row("OVRF", "\(store.world.overfeed)")
                 row("WKDN", "\(store.world.sleepDisturb)")
 
-                Button {
-                    store.showDetail = false
-                    store.startBattle()
-                } label: {
-                    Label("BATTLE", systemImage: "bolt.fill")
-                        .font(.system(size: 10, weight: .bold, design: .monospaced))
-                }
-                .buttonStyle(.bordered)
-                .tint(Theme.warn)
-
-                HStack {
-                    Text("BATTLES")
-                        .font(.system(size: 9, weight: .bold, design: .monospaced))
-                        .foregroundStyle(.secondary)
-                    Spacer()
-                    Text("\(store.world.wins)/\(store.world.battles)")
-                        .font(.system(size: 10, weight: .semibold, design: .monospaced))
-                }
+                Divider()
 
                 NavigationLink("SETUP") { SettingsView(store: store) }
                     .font(.system(size: 10, weight: .bold, design: .monospaced))
                     .tint(Theme.lcd)
-
-                Button("NEW EGG") { store.newGame() }
-                    .buttonStyle(.bordered)
-                    .tint(Theme.danger)
-                    .padding(.top, 4)
             }
             .padding(.horizontal, 4)
         }
         .onAppear {
-            // 进详情页才要通知权限：先让用户看到宠物，再谈提醒
             if !askedNotifications {
                 askedNotifications = true
                 Notifier.requestPermission()
@@ -201,12 +248,14 @@ struct DetailView: View {
         }
     }
 
-    private var nextEvolutionText: String {
+    private var nextText: String {
+        if let need = store.world.battlesToPerfect, need > 0 {
+            return "\(need) FIGHTS"
+        }
         guard let m = store.world.minutesToEvolution, let next = store.world.nextStage else {
             return "MAX"
         }
-        if m < 60 { return "\(next.display) \(m)m" }
-        return "\(next.display) \(m / 60)h"
+        return m < 60 ? "\(next.display) \(m)m" : "\(next.display) \(m / 60)h"
     }
 
     private func row(_ k: String, _ v: String) -> some View {
@@ -217,6 +266,7 @@ struct DetailView: View {
             Spacer()
             Text(v)
                 .font(.system(size: 10, weight: .semibold, design: .monospaced))
+                .monospacedDigit()
         }
     }
 }
