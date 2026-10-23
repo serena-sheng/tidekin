@@ -69,6 +69,7 @@ struct RootView: View {
                     .allowsHitTesting(false)
             }
         }
+        .animation(.easeInOut(duration: 0.15), value: store.toast)
         .containerBackground(for: .tabView) { Color.black }
     }
 }
@@ -88,7 +89,7 @@ struct CompanionPage: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .animation(.easeOut(duration: 0.18), value: store.world.headline)
 
-            LCDView(world: store.world, showMeters: false, spriteMax: 112)
+            LCDView(world: store.world, spriteMax: 112)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .padding(.vertical, 8)
                 .contentShape(Rectangle())
@@ -98,8 +99,7 @@ struct CompanionPage: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .padding(.horizontal, 8)
-        .ignoresSafeArea(edges: .bottom)
-        .padding(.bottom, 8)
+        .safeAreaPadding(.bottom, 4)
     }
 
     private var headlineColor: Color {
@@ -113,12 +113,13 @@ struct CompanionPage: View {
 
     /// 四个照顾动作全部固定在首屏：横滑与纵向翻页共用一个安全区，
     /// 手势仲裁不可靠；而 CLEAN/HEAL 的需求高亮如果滑到屏外就等于没有提示。
+    /// 三格一行：HIG 的 watchOS 上限是 3 个图形按钮，且 2×2 会把宠物压掉一半。
+    /// 第一屏以美术为主，所以只留三个最高频的照顾动作，HEAL 移到第二页。
     private var actionBar: some View {
-        HStack(spacing: 4) {
+        HStack(spacing: 8) {
             cell(.feed)
             cell(.train)
             cell(.clean)
-            cell(.heal)
         }
     }
 
@@ -126,7 +127,7 @@ struct CompanionPage: View {
         let demanded = action.rawValue == store.demandIndex && !store.actionsDisabled
         let dimmed = store.actionsDisabled
 
-        let iconColor: Color = dimmed ? Theme.ink.opacity(0.3)
+        let iconColor: Color = dimmed ? Theme.ink.opacity(0.5)
             : demanded ? Theme.lcd
             : Theme.ink.opacity(0.72)
 
@@ -135,9 +136,11 @@ struct CompanionPage: View {
         } label: {
             VStack(spacing: 2) {
                 Image(systemName: action.symbol)
-                    .font(.system(size: 17, weight: .medium))
+                    .font(.system(size: 16, weight: .medium))
                 Text(action.label)
-                    .font(.system(size: 10, weight: .medium, design: .monospaced))
+                    .font(.system(size: 12, weight: .medium))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.85)
             }
             .foregroundStyle(iconColor)
             .frame(maxWidth: .infinity)
@@ -208,7 +211,7 @@ struct StatusPage: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .padding(.horizontal, Grid.margin)
-        .padding(.top, 2)
+        .padding(.top, 12)
     }
 
     private var stageLine: String {
@@ -256,9 +259,10 @@ struct StatusPage: View {
 
     /// 战斗与治疗放这一页：打不打要看力量，治不治要看伤，判断依据都在这屏。
     private var actionRow: some View {
-        HStack(spacing: 6) {
+        HStack(spacing: 8) {
             actionButton(.battle)
             actionButton(.heal)
+            actionButton(.talk)
         }
     }
 
@@ -355,6 +359,7 @@ struct RecordsPage: View {
                     row("MISS", "\(store.world.careMistakes)")
                     row("TRAIN", "\(store.world.trainCount)")
                     row("OVRFEED", "\(store.world.overfeed)")
+                    row("DISTURB", "\(store.world.sleepDisturb)")
                     row("TOKENS", "\(store.world.totalTokens)")
                 }
             } else {
@@ -370,15 +375,6 @@ struct RecordsPage: View {
             }
 
             Spacer(minLength: 8)
-
-            // 与第二页的 BATTLES / NEXT 同构：无容器行式，靠图标区分
-            Button {
-                store.showChat = true
-            } label: {
-                linkRow(Store.Action.talk.symbol, "TALK")
-            }
-            .buttonStyle(PressableStyle())
-            .padding(.bottom, 8)
 
             Button {
                 store.showSettings = true

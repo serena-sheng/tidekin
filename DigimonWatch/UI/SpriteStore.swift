@@ -17,7 +17,12 @@ enum SpriteStore {
         let key = blink ? base + "_b" : base
         let key32 = base + "32" + (blink ? "_b" : "")
         if let hit = cache[key32] { return hit }
-        if let big = load(key32) { cache[key32] = big; return big }
+        if let big = load(key32) {
+            // 32 版也要按包围盒居中，否则与 16 版切换时位置会跳
+            let centered = centerOnCanvas(big, canvas: 32) ?? big
+            cache[key32] = centered
+            return centered
+        }
 
         if let hit = cache[key] { return hit }
         guard let raw = load(key) else { return nil }

@@ -69,10 +69,6 @@ final class Store: ObservableObject {
         }
     }
 
-    static var actions: [(symbol: String, label: String)] {
-        Action.allCases.map { ($0.symbol, $0.label) }
-    }
-
     init() {
         if let loaded = Persistence.load() {
             world = loaded
@@ -331,5 +327,4 @@ final class Store: ObservableObject {
 
 enum Haptics {
     static func tap() { WKInterfaceDevice.current().play(.click) }
-    static func chime() { WKInterfaceDevice.current().play(.success) }
 }

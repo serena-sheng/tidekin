@@ -124,7 +124,7 @@ struct BattleView: View {
 
     private func footer(_ b: BattleState) -> some View {
         HStack(spacing: 8) {
-            if b.finished {
+            if b.finished && !store.world.isDead {
                 Button {
                     store.startBattle()
                     charge = 0
