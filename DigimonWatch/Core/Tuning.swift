@@ -50,6 +50,8 @@ struct Tuning: Codable, Equatable {
     var healthStrengthPerDriveMinute: Double = 30
     /// 每多少个驱动分钟，token 线补 0.05 努力值
     var tokenEffortPerDriveMinute: Double = 40
+    /// 累计消耗达到这个数，成长方向转入「潜渊」线（约 10–20 次对话）
+    var deepPathTokens: Int = 6000
 
     struct DriveWeights: Codable, Equatable {
         var time: Double = 1.0
@@ -64,12 +66,12 @@ enum Stage: Int, Codable, CaseIterable {
 
     var display: String {
         switch self {
-        case .egg: return "DIGITAMA"
-        case .baby1: return "BABY I"
-        case .baby2: return "BABY II"
-        case .child: return "CHILD"
-        case .adult: return "ADULT"
-        case .perfect: return "PERFECT"
+        case .egg: return "SEED"
+        case .baby1: return "FRY"
+        case .baby2: return "JUVENILE"
+        case .child: return "YOUNG"
+        case .adult: return "MATURE"
+        case .perfect: return "APEX"
         }
     }
 

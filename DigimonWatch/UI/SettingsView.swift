@@ -48,7 +48,7 @@ struct SettingsView: View {
 
                 Divider()
 
-                section("DeepSeek")
+                section("模型服务")
                 SecureField("API Key", text: $apiKey)
                     .font(.system(size: 10, design: .monospaced))
                 Button("保存 Key") {

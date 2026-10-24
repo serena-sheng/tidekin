@@ -254,7 +254,7 @@ struct StatusPage: View {
             Text(stageLine)
                 .font(.system(size: 12, weight: .medium, design: .monospaced))
                 .foregroundStyle(Theme.ink.opacity(0.55))
-            Text(store.world.species)
+            Text(store.world.displayName)
                 .font(.system(size: 22, weight: .semibold, design: .rounded))
                 .foregroundStyle(Theme.ink.opacity(0.92))
                 .lineLimit(1)

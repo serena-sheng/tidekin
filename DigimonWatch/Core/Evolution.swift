@@ -1,6 +1,10 @@
 import Foundation
 
-/// Ver.1 进化表。所有阈值来自原版规则（见文档第二节）。
+/// 潮线（Whale Line）进化表。
+///
+/// 六阶段结构不动，只换角色与判定：
+/// 失养 → 漂雾；练得多 → 跃潮；聊得多（token 深线）→ 潜渊；否则游潮。
+/// 完全体由成人形态决定，其中潜渊与漂雾殊途同归，都沉成鲲。
 enum Evolution {
 
     static func thresholdMinutes(for stage: Stage, tuning: Tuning) -> Int? {
@@ -14,7 +18,7 @@ enum Evolution {
         }
     }
 
-    /// Perfect 阶段要求战斗积累；不满足就停在 Adult，不硬推。
+    /// 完全体要求战斗积累；不满足就停在成人期，不硬推。
     static func isEligible(for next: Stage, from w: World) -> Bool {
         guard next == .perfect else { return true }
         return w.battles >= 15 && w.winRate >= 0.4
@@ -22,54 +26,27 @@ enum Evolution {
 
     static func species(for next: Stage, from w: World) -> String {
         switch next {
-        case .egg: return "DIGITAMA"
-        case .baby1: return "BOTAMON"
-        case .baby2: return "KOROMON"
-        case .child: return w.careMistakes <= 3 ? "AGUMON" : "BETAMON"
+        case .egg: return "tideseed"
+        case .baby1: return "spume"
+        case .baby2: return "calf"
+        case .child: return w.careMistakes <= 3 ? "cetal" : "mael"
         case .adult: return adultSpecies(from: w)
         case .perfect: return perfectSpecies(from: w)
         }
     }
 
     private static func adultSpecies(from w: World) -> String {
-        let m = w.careMistakes
-        let train = w.trainCount
-        let over = w.overfeed
-        let disturb = w.sleepDisturb
-
-        if w.species == "AGUMON" {
-            if m <= 3 {
-                return train >= 32 ? "GREYMON" : "DEVIMON"
-            }
-            if (5...15).contains(train) && over >= 3 && (0...4).contains(disturb) {
-                return "TYRANOMON"
-            }
-            if train >= 16 && over >= 3 && (0...6).contains(disturb) {
-                return "MERAMON"
-            }
-            return "NUMEMON"
-        }
-
-        if w.species == "BETAMON" {
-            if m <= 3 {
-                return train >= 48 ? "DEVIMON" : "MERAMON"
-            }
-            if (8...31).contains(train) {
-                if over >= 4 { return "SEADRAMON" }
-                if over <= 3 && disturb >= 9 { return "AIDRAMON" }
-            }
-            return "NUMEMON"
-        }
-
-        return "NUMEMON"
+        if w.careMistakes > 3 { return "drift" }
+        if w.trainCount >= 32 { return "breacher" }
+        if w.totalTokens >= w.tuning.deepPathTokens { return "abyss" }
+        return "current"
     }
 
     private static func perfectSpecies(from w: World) -> String {
-        switch w.species {
-        case "GREYMON", "DEVIMON", "AIDRAMON": return "METALGREYMON"
-        case "TYRANOMON", "MERAMON", "SEADRAMON": return "MAMEMON"
-        case "NUMEMON": return "MONZAEMON"
-        default: return "NUMEMON"
+        switch Characters.id(for: w.species) {
+        case "breacher": return "kraken"
+        case "current": return "siren"
+        default: return "kun"
         }
     }
 }

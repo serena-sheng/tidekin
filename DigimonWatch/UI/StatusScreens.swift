@@ -17,7 +17,7 @@ struct GoneView: View {
                 Text("GONE")
                     .font(.system(size: 15, weight: .heavy, design: .monospaced))
                     .foregroundStyle(Theme.danger)
-                Text("\(store.world.species) RETURNED TO DATA · \(ageText)")
+                Text("\(store.world.displayName) RETURNED TO DATA · \(ageText)")
                     .font(.system(size: 8, design: .monospaced))
                     .foregroundStyle(Theme.ink.opacity(0.4))
                     .lineLimit(1)
@@ -33,7 +33,7 @@ struct GoneView: View {
                         store.tapNewEgg()
                         Haptics.tap()
                     } label: {
-                        Text(store.newEggArmed ? "TAP AGAIN · ERASES \(store.world.species)" : "NEW EGG")
+                        Text(store.newEggArmed ? "TAP AGAIN · ERASES \(store.world.displayName)" : "NEW EGG")
                             .font(.system(size: 9, weight: .bold, design: .monospaced))
                             .lineLimit(1)
                             .minimumScaleFactor(0.6)

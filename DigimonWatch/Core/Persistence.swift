@@ -2,7 +2,7 @@ import Foundation
 
 /// 单文件 JSON 持久化。放 App Group 容器，方便将来给 Complication / Widget 共用。
 enum Persistence {
-    static let appGroup = "group.com.serena.digimonwatch"
+    static let appGroup = "group.com.serena.tidekin"
     static let fileName = "world.json"
 
     static var url: URL {

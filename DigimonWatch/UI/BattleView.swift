@@ -116,7 +116,7 @@ struct BattleView: View {
         VStack(spacing: 2) {
             bar(value: b.playerHP, max: BattleState.playerHP(for: store.world), color: Theme.lcd)
             HStack {
-                Text(store.world.species)
+                Text(store.world.displayName)
                     .font(.system(size: 9, weight: .bold, design: .monospaced))
                     .foregroundStyle(Theme.ink.opacity(0.7))
                 Spacer()

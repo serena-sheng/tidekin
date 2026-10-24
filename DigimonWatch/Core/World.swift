@@ -17,7 +17,10 @@ struct World: Codable {
     var tuning: Tuning
 
     var stage: Stage
-    var species: String
+    var species: String   // 资源 id（小写）
+
+    /// 屏幕上显示的名字。换 IP 时只改 Characters 表。
+    var displayName: String { Characters.display(species) }
 
     var hunger: Int
     var strength: Int
@@ -74,7 +77,7 @@ struct World: Codable {
         World(
             tuning: tuning,
             stage: .egg,
-            species: "DIGITAMA",
+            species: "tideseed",
             hunger: 0, strength: 0, effort: 0, weight: 5, poop: 0, injured: 0,
             careMistakes: 0, sleepDisturb: 0, overfeed: 0, trainCount: 0,
             battles: 0, wins: 0,
@@ -168,5 +171,60 @@ struct World: Codable {
         if hunger == 0 || strength == 0 { return "HUNGRY" }
         if hunger <= 2 { return "PECKISH" }
         return "HAPPY"
+    }
+}
+
+
+// MARK: - 角色表
+// 换 IP 时只改这里的 name 字段与同名 PNG，其余代码不动。
+/// 角色表：把「物种」从代码里抽出来。
+///
+/// 现在 id 是资源文件名，name 是屏幕上显示的名字。
+/// 换 IP 时只改这个文件的 name 字段、替换同名 PNG，其余代码一行都不用动。
+struct Character: Identifiable {
+    let id: String        // 资源名 base（小写）
+    let name: String      // 显示名
+    let stage: Stage
+}
+
+enum Characters {
+
+    /// 顺序即图鉴顺序，不参与进化判定
+    static let table: [Character] = [
+        Character(id: "tideseed", name: "TIDESEED", stage: .egg),
+        Character(id: "spume",    name: "SPUME",    stage: .baby1),
+        Character(id: "calf",     name: "CALF",     stage: .baby2),
+        Character(id: "cetal",    name: "CETAL",    stage: .child),
+        Character(id: "mael",     name: "MAEL",     stage: .child),
+        Character(id: "current",  name: "CURRENT",  stage: .adult),
+        Character(id: "breacher", name: "BREACHER", stage: .adult),
+        Character(id: "abyss",    name: "ABYSS",    stage: .adult),
+        Character(id: "drift",    name: "DRIFT",    stage: .adult),
+        Character(id: "kun",      name: "KUN",      stage: .perfect),
+        Character(id: "kraken",   name: "KRAKEN",   stage: .perfect),
+        Character(id: "siren",    name: "SIREN",    stage: .perfect),
+    ]
+
+    private static let byId: [String: Character] = {
+        Dictionary(uniqueKeysWithValues: table.map { ($0.id, $0) })
+    }()
+
+    /// 旧存档里存的是大写显示名，统一折回 id
+    static func id(for raw: String) -> String {
+        let lower = raw.lowercased()
+        if byId[lower] != nil { return lower }
+        return table.first { $0.name.caseInsensitiveCompare(raw) == .orderedSame }?.id ?? lower
+    }
+
+    static func display(_ raw: String) -> String {
+        byId[id(for: raw)]?.name ?? raw.uppercased()
+    }
+
+    static func stage(_ raw: String) -> Stage? {
+        byId[id(for: raw)]?.stage
+    }
+
+    static func of(_ stage: Stage) -> [Character] {
+        table.filter { $0.stage == stage }
     }
 }

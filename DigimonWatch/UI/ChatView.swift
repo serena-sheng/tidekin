@@ -13,7 +13,7 @@ struct ChatView: View {
                         .font(.system(size: 8, design: .monospaced))
                         .foregroundStyle(Theme.ink.opacity(0.28))
                     if store.chatLog.isEmpty {
-                        Text("跟 \(store.world.species) 说点什么")
+                        Text("跟 \(store.world.displayName) 说点什么")
                             .font(.system(size: 11, design: .monospaced))
                             .foregroundStyle(.secondary)
                             .padding(.top, 8)

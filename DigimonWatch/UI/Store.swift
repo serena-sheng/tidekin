@@ -243,7 +243,7 @@ final class Store: ObservableObject {
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty, !isThinking else { return }
         guard let key = Keychain.get(Keychain.deepSeekKey), !key.isEmpty else {
-            chatError = "先在设置里填 DeepSeek API Key"
+            chatError = "先在设置里填 API Key"
             return
         }
 

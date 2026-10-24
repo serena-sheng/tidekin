@@ -292,7 +292,7 @@
 				CURRENT_PROJECT_VERSION = 1;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_KEY_CFBundleDisplayName = DigiVice;
+				INFOPLIST_KEY_CFBundleDisplayName = Tidekin;
 				INFOPLIST_KEY_NSHealthShareUsageDescription = "读取步数用来推动你的数码兽成长。";
 				INFOPLIST_KEY_WKApplication = YES;
 				INFOPLIST_KEY_WKWatchOnly = YES;
@@ -301,7 +301,7 @@
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 0.1;
-				PRODUCT_BUNDLE_IDENTIFIER = com.serena.digimonwatch;
+				PRODUCT_BUNDLE_IDENTIFIER = com.serena.tidekin;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = watchos;
 				SUPPORTED_PLATFORMS = "watchos watchsimulator";
@@ -321,7 +321,7 @@
 				CURRENT_PROJECT_VERSION = 1;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_KEY_CFBundleDisplayName = DigiVice;
+				INFOPLIST_KEY_CFBundleDisplayName = Tidekin;
 				INFOPLIST_KEY_NSHealthShareUsageDescription = "读取步数用来推动你的数码兽成长。";
 				INFOPLIST_KEY_WKApplication = YES;
 				INFOPLIST_KEY_WKWatchOnly = YES;
@@ -330,7 +330,7 @@
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 0.1;
-				PRODUCT_BUNDLE_IDENTIFIER = com.serena.digimonwatch;
+				PRODUCT_BUNDLE_IDENTIFIER = com.serena.tidekin;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = watchos;
 				SUPPORTED_PLATFORMS = "watchos watchsimulator";
@@ -355,7 +355,7 @@
 					"@executable_path/../../Frameworks",
 				);
 				MARKETING_VERSION = 0.1;
-				PRODUCT_BUNDLE_IDENTIFIER = com.serena.digimonwatch.widget;
+				PRODUCT_BUNDLE_IDENTIFIER = com.serena.tidekin.widget;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = watchos;
 				SKIP_INSTALL = YES;
@@ -380,7 +380,7 @@
 					"@executable_path/../../Frameworks",
 				);
 				MARKETING_VERSION = 0.1;
-				PRODUCT_BUNDLE_IDENTIFIER = com.serena.digimonwatch.widget;
+				PRODUCT_BUNDLE_IDENTIFIER = com.serena.tidekin.widget;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = watchos;
 				SKIP_INSTALL = YES;

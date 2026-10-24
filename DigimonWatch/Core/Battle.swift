@@ -9,16 +9,16 @@ struct Enemy: Codable, Equatable {
     let sprite: String    // 复用已有资源名
 
     static let pool: [Enemy] = [
-        Enemy(name: "PUNIMON", stage: .baby2, power: 2, sprite: "koromon"),
-        Enemy(name: "PAGUMON", stage: .baby2, power: 3, sprite: "betamon"),
-        Enemy(name: "GABUMON", stage: .child, power: 4, sprite: "agumon"),
-        Enemy(name: "PATAMON", stage: .child, power: 4, sprite: "airdramon"),
-        Enemy(name: "GAZIMON", stage: .child, power: 5, sprite: "numemon"),
-        Enemy(name: "BIRDRAMON", stage: .adult, power: 6, sprite: "airdramon"),
-        Enemy(name: "Kuwagamon", stage: .adult, power: 7, sprite: "tyranomon"),
-        Enemy(name: "ETEMON", stage: .adult, power: 7, sprite: "devimon"),
-        Enemy(name: "SKULLGREYMON", stage: .perfect, power: 9, sprite: "metalgreymon"),
-        Enemy(name: "PIEDMON", stage: .perfect, power: 10, sprite: "devimon"),
+        Enemy(name: "SPECK", stage: .baby2, power: 2, sprite: "spume"),
+        Enemy(name: "BRINELING", stage: .baby2, power: 3, sprite: "calf"),
+        Enemy(name: "EDDY", stage: .child, power: 4, sprite: "cetal"),
+        Enemy(name: "SHOALFIN", stage: .child, power: 4, sprite: "mael"),
+        Enemy(name: "RIPTIDE", stage: .child, power: 5, sprite: "current"),
+        Enemy(name: "GLOOMFIN", stage: .adult, power: 6, sprite: "drift"),
+        Enemy(name: "MAELSTROM", stage: .adult, power: 7, sprite: "breacher"),
+        Enemy(name: "DEEPLURK", stage: .adult, power: 7, sprite: "abyss"),
+        Enemy(name: "VOIDMAW", stage: .perfect, power: 9, sprite: "kraken"),
+        Enemy(name: "LEVIATHAN", stage: .perfect, power: 10, sprite: "kun"),
     ]
 
     /// 按玩家阶段挑一个难度相近的对手。

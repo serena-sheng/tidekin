@@ -51,7 +51,7 @@ enum Schedule {
                     hunger -= 1
                     if hunger == 0 {
                         return Event(date: t,
-                                     title: "\(w.species) IS CALLING",
+                                     title: "\(w.displayName) IS CALLING",
                                      body: "Hungry. Feed it before it counts as a care mistake.")
                     }
                 }
@@ -65,7 +65,7 @@ enum Schedule {
                     strength -= 1
                     if strength == 0 {
                         return Event(date: t,
-                                     title: "\(w.species) IS CALLING",
+                                     title: "\(w.displayName) IS CALLING",
                                      body: "Out of power. Train it.")
                     }
                 }
@@ -77,7 +77,7 @@ enum Schedule {
                drive >= Double(need) {
                 return Event(date: t,
                              title: "EVOLVING",
-                             body: "\(w.species) is about to change.")
+                             body: "\(w.displayName) is about to change.")
             }
         }
 

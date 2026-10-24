@@ -22,11 +22,11 @@ let start = date(23, 9, 0)
 // 1. 孵化
 var w = World.newGame(at: start, tuning: t)
 w = Simulator.resolve(w, now: plus(start, 2)).0
-check(w.stage == .baby1 && w.species == "BOTAMON", "2 分钟孵出 BOTAMON（\(w.stage.display)/\(w.species)）")
+check(w.stage == .baby1 && w.species == "spume", "2 分钟孵出 BOTAMON（\(w.stage.display)/\(Characters.display(w.species))）")
 
 // 2. Baby II
 w = Simulator.resolve(w, now: plus(start, 13)).0
-check(w.stage == .baby2 && w.species == "KOROMON", "13 分钟到 KOROMON（\(w.stage.display)/\(w.species)）")
+check(w.stage == .baby2 && w.species == "calf", "13 分钟到 KOROMON（\(w.stage.display)/\(Characters.display(w.species))）")
 
 // 3. 放任 5 小时：应饿空并记失误，但仍未进化
 w = Simulator.resolve(w, now: plus(start, 13 + 5 * 60)).0
@@ -61,9 +61,9 @@ for _ in 0..<(7 * 60) {
     if c.stage != .egg && c.hunger < c.maxHearts { c = Simulator.feed(c, at: now) }
     if c.stage != .egg && c.strength < c.maxHearts { c = Simulator.train(c, at: now) }
 }
-check(c.stage == .child, "精心照料 7 小时到 CHILD（\(c.stage.display)/\(c.species)）")
+check(c.stage == .child, "精心照料 7 小时到 CHILD（\(c.stage.display)/\(Characters.display(c.species))）")
 check(c.careMistakes == 0, "全程照料 0 失误（\(c.careMistakes)）")
-check(c.species == "AGUMON", "0 失误 → AGUMON（\(c.species)）")
+check(c.species == "cetal", "0 失误 → AGUMON（\(Characters.display(c.species))）")
 
 // 8. 持续照料 + 训练 ≥32 → GREYMON
 var g = c
@@ -83,7 +83,7 @@ while gnow < target {
     if g.stage != .egg && g.strength < g.maxHearts { g = Simulator.train(g, at: gnow) }
 }
 check(g.stage == .adult, "持续照料后到 ADULT（\(g.stage.display)）")
-check(g.species == "GREYMON", "0 失误 + 训练 ≥32 → GREYMON（\(g.species) / 失误 \(g.careMistakes) / 训练 \(g.trainCount)）")
+check(g.species == "breacher", "0 失误 + 训练 ≥32 → GREYMON（\(Characters.display(g.species)) / 失误 \(g.careMistakes) / 训练 \(g.trainCount)）")
 
 // 9. Perfect 需要战斗积累，不够就不进化
 let p = Simulator.resolve(g, now: plus(gnow, 60 * 60)).0
@@ -192,6 +192,33 @@ rec.battles = 3; rec.wins = 1
 let (rec2, _) = Simulator.recordBattle(rec, won: false, at: plus(start, 14))
 check(rec2.battles == 4 && rec2.wins == 1, "输了记 battles+1、wins 不变（\(rec2.battles)/\(rec2.wins)）")
 check(rec2.injured == rec.injured + 1, "输了会受伤（\(rec.injured) → \(rec2.injured)）")
+
+// 20-25. 潮线成人分化与完全体映射
+func childWorld(mistakes: Int, train: Int, tokens: Int) -> World {
+    var w = World.newGame(at: start, tuning: t)
+    w.stage = .child
+    w.species = "cetal"
+    w.careMistakes = mistakes
+    w.trainCount = train
+    w.totalTokens = tokens
+    return w
+}
+check(Evolution.species(for: .adult, from: childWorld(mistakes: 4, train: 0, tokens: 0)) == "drift",
+      "失养 → 漂雾")
+check(Evolution.species(for: .adult, from: childWorld(mistakes: 0, train: 32, tokens: 0)) == "breacher",
+      "训练满 → 跃潮")
+check(Evolution.species(for: .adult, from: childWorld(mistakes: 0, train: 0, tokens: 6000)) == "abyss",
+      "token 深线 → 潜渊")
+check(Evolution.species(for: .adult, from: childWorld(mistakes: 0, train: 0, tokens: 0)) == "current",
+      "均衡 → 游潮")
+
+var pf = childWorld(mistakes: 0, train: 0, tokens: 0)
+pf.species = "breacher"
+check(Evolution.species(for: .perfect, from: pf) == "kraken", "跃潮 → 沧主")
+pf.species = "current"
+check(Evolution.species(for: .perfect, from: pf) == "siren", "游潮 → 歌潮")
+pf.species = "abyss"
+check(Evolution.species(for: .perfect, from: pf) == "kun", "潜渊 → 鲲")
 
 print(exitCode == 0 ? "\nALL PASS" : "\nHAS FAILURES")
 exit(exitCode)

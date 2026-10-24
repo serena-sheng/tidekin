@@ -1,6 +1,34 @@
-# DigiVice（Apple Watch 暴龙机复刻）
+# Tidekin（潮线）
 
-watchOS 独立 app。复刻初代 Digital Monster Ver.1 的机制，按手表的使用节奏重做输入与时间模型。
+watchOS 独立 app：一只与你**真实 AI 用量**绑定的鲸。你消耗的 token 就是它长大的水。
+
+## 世界观
+
+原创 IP「潮线 Whale Line」，12 个形态：
+
+```
+TIDESEED 潮种 → SPUME 沫沫 → CALF 鲸苗
+   → CETAL 汐仔 / MAEL 涡仔（照顾得好不好）
+   → CURRENT 游潮 / BREACHER 跃潮 / ABYSS 潜渊 / DRIFT 漂雾（三线分化）
+   → SIREN 歌潮 / KRAKEN 沧主 / KUN 鲲（完全体）
+```
+
+**三条线决定它长成什么**：
+- 时间 → 掉心、便便、睡眠、失误窗口
+- HealthKit 步数 → 力量心、训练
+- 手表内对话消耗的 token → 努力值，且累计超过阈值会转入「潜渊」线
+
+完全体门槛是 15 战 + 胜率 40%。潜渊与漂雾殊途同归，最后都沉成鲲。
+
+设计规格见 `docs/specs/ip-whale-line.md`。
+
+## 关于 IP
+
+角色、阶段、进化条件、对手全部原创；精灵是自绘 32×32 像素画（`Art/build_whale_*.py` 可重生成）。
+
+- 不包含任何 AI 厂商商标或角色设计
+- 原型参考只取「思想层」：鲸 + 蓝白 + AI 提示符语汇 + 萌系比例
+- 第三方 AI 对话为可选中性集成，不在 UI 露出品牌
 
 ## 跑起来
 
