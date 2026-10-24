@@ -127,6 +127,12 @@ python3 Art/build_whale_a.py && python3 Art/build_whale_b.py && python3 Art/poli
 - [`docs/specs/ip-whale-line.md`](docs/specs/ip-whale-line.md) —— 12 形态的命名、视觉处方、进化映射
 - [`docs/store-copy.md`](docs/store-copy.md) —— 商店文案、关键词、分级建议
 
+## 隐私
+
+完整政策：<https://serena-sheng.github.io/tidekin/privacy>
+
+一句话：没有服务器、没有账号、没有遥测。宠物状态与举报记录留在设备；步数只在本机换算；对话只发往你自己配置的服务；API Key 存在系统 Keychain。
+
 ## 许可
 
 代码 MIT。像素美术与角色设定同样以 MIT 发布。
