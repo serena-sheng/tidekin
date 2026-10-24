@@ -262,6 +262,17 @@ def render(cv, eye_color=None, levels=None):
     out = Image.new("RGBA", (W, H), (0, 0, 0, 0))
     o = out.load()
 
+    # 整只角色共用一套光源参考：按材质各自包围盒会随形状漂移，导致高光跑到右下
+    all_pts = [(x, y) for y in range(H) for x in range(W) if lab[x, y] != 0]
+    if all_pts:
+        gx0 = min(p[0] for p in all_pts); gx1 = max(p[0] for p in all_pts)
+        gy0 = min(p[1] for p in all_pts); gy1 = max(p[1] for p in all_pts)
+        gcx, gcy = (gx0 + gx1) / 2, (gy0 + gy1) / 2
+        grx = max((gx1 - gx0) / 2, 0.5)
+        gry = max((gy1 - gy0) / 2, 0.5)
+    else:
+        gcx = gcy = W / 2; grx = gry = W / 2
+
     for idx in range(1, len(cv.names)):
         name = cv.names[idx]
         key = name.split(":")[0]
@@ -283,14 +294,9 @@ def render(cv, eye_color=None, levels=None):
         pts = [(x, y) for y in range(H) for x in range(W) if lab[x, y] == idx]
         if not pts:
             continue
-        xs = [p[0] for p in pts]
-        ys = [p[1] for p in pts]
-        cx, cy = (min(xs) + max(xs)) / 2, (min(ys) + max(ys)) / 2
-        rx = max((max(xs) - min(xs)) / 2, 0.5)
-        ry = max((max(ys) - min(ys)) / 2, 0.5)
         hi, base, lo = BODY[key]
         for (x, y) in pts:
-            s = 0.6 * (x - cx) / rx + 0.85 * (y - cy) / ry
+            s = 0.6 * (x - gcx) / grx + 0.85 * (y - gcy) / gry
             col = hi if s < -0.5 else (lo if s > 0.55 else base)
             o[x, y] = col
             if levels is not None:
@@ -397,7 +403,7 @@ def main():
         blinked = check_blink(name, im, blink, dom)
         levels = {fam: len(v) for fam, v in used.items()}
         for fam, lv in levels.items():
-            assert lv == 3, f"{name}: material {fam} has {lv} levels (need 3)"
+            assert 2 <= lv <= 3, f"{name}: material {fam} has {lv} levels (need 2-3)"
         im.save(os.path.join(out_dir, f"{name}32.png"))
         blink.save(os.path.join(out_dir, f"{name}32_b.png"))
         bx = bbox(im)

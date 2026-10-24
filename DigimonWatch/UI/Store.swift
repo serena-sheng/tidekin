@@ -24,6 +24,7 @@ final class Store: ObservableObject {
     @Published var page: Int = 0
     @Published var toast: String?
     @Published var showSettings = false
+    @Published var showRecords = false
     @Published var showChat = false
     @Published var showBattle = false
     @Published var battle: BattleState?

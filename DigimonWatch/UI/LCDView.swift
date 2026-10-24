@@ -5,6 +5,7 @@ import SwiftUI
 struct LCDView: View {
     @Environment(\.isLuminanceReduced) private var dimmed
     @State private var blinking = false
+    @State private var hatching = false
 
     let world: World
     /// 精灵最大边长。第一页给大值，让宠物成为画面主角。
@@ -27,6 +28,15 @@ struct LCDView: View {
                     .id(world.species)
                     .transition(.opacity)
                     .animation(.easeInOut(duration: 0.3), value: world.species)
+                    // 蛋期脉动：告诉人"它在里面动"，而不是一张静态图
+                    .scaleEffect(world.stage == .egg ? (hatching ? 1.03 : 0.98) : 1)
+                    .animation(world.stage == .egg
+                               ? .easeInOut(duration: 0.9).repeatForever(autoreverses: true)
+                               : .easeInOut(duration: 0.2),
+                               value: hatching)
+                    .task(id: world.stage) {
+                        hatching = world.stage == .egg
+                    }
                     .task(id: world.isAsleep) {
                         guard !world.isAsleep else { return }
                         while !Task.isCancelled {

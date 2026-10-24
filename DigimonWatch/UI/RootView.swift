@@ -22,10 +22,14 @@ struct RootView: View {
         .sheet(isPresented: $store.showBattle) {
             BattleView(store: store)
         }
+        .sheet(isPresented: $store.showRecords) {
+            NavigationStack { RecordsPage(store: store) }
+        }
         .onChange(of: phase) { _, new in
             if new == .active { store.tick() }
         }
         .task {
+            if UserDefaults.standard.bool(forKey: "debugNewGame") { store.tapNewEgg() ; store.tapNewEgg() }
             if UserDefaults.standard.bool(forKey: "debugBattle") { store.startBattle() }
             if UserDefaults.standard.object(forKey: "debugPage") != nil {
                 store.page = UserDefaults.standard.integer(forKey: "debugPage")
@@ -52,7 +56,6 @@ struct RootView: View {
             TabView(selection: $store.page) {
                 CompanionPage(store: store).tag(0)
                 StatusPage(store: store).tag(1)
-                RecordsPage(store: store).tag(2)
             }
             .tabViewStyle(.verticalPage)
 
@@ -216,6 +219,23 @@ struct StatusPage: View {
                 row("BATTLES", "\(store.world.wins)/\(store.world.battles)")
                 row("NEXT", nextText)
             }
+
+            Button {
+                store.showRecords = true
+            } label: {
+                HStack(spacing: 5) {
+                    Text("RECORDS")
+                        .font(.system(size: 12, weight: .medium, design: .monospaced))
+                    Spacer()
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 10, weight: .semibold))
+                        .opacity(0.4)
+                }
+                .foregroundStyle(Theme.ink.opacity(0.55))
+                .frame(height: 30)
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(PressableStyle())
             .padding(.bottom, 2)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
