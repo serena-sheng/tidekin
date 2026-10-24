@@ -35,6 +35,7 @@ final class Store: ObservableObject {
 
     // 聊天
     @Published var chatLog: [(role: String, text: String)] = []
+    @Published var needsConsent = false
     @Published var isThinking = false
     @Published var chatError: String?
 
@@ -239,9 +240,58 @@ final class Store: ObservableObject {
 
     // MARK: - 对话
 
+    // MARK: - 对话前的同意与内容把关
+
+    private static let consentKey = "consent.talk.accepted"
+
+    var hasConsented: Bool { UserDefaults.standard.bool(forKey: Self.consentKey) }
+
+    func acceptConsent() {
+        UserDefaults.standard.set(true, forKey: Self.consentKey)
+        needsConsent = false
+    }
+
+    /// 最低限度的输出把关。模型仍可能出错，所以同时提供举报入口。
+    private static let blockedTerms = [
+        "自杀", "自残", "制毒", "爆炸物", "儿童色情", "强奸",
+    ]
+
+    static func filtered(_ text: String) -> String? {
+        let lowered = text.lowercased()
+        for term in blockedTerms where lowered.contains(term) {
+            return nil
+        }
+        return text
+    }
+
+    /// 举报留证：watchOS 没有剪贴板，把最近一轮原文追加到 App Group 的 reports.log，
+    /// 设置页可以看到条数。真要走申诉时从容器里取。
+    func reportLastExchange() {
+        let recent = chatLog.suffix(4).map { "\($0.role): \($0.text)" }.joined(separator: "\n")
+        let url = Persistence.url
+            .deletingLastPathComponent()
+            .appendingPathComponent("reports.log")
+        var content = (try? String(contentsOf: url, encoding: .utf8)) ?? ""
+        content += "[\(ISO8601DateFormatter().string(from: Date()))]\n\(recent)\n\n"
+        try? content.write(to: url, atomically: true, encoding: .utf8)
+        flash("已记录这次对话")
+    }
+
+    var reportCount: Int {
+        let url = Persistence.url
+            .deletingLastPathComponent()
+            .appendingPathComponent("reports.log")
+        guard let text = try? String(contentsOf: url, encoding: .utf8) else { return 0 }
+        return text.components(separatedBy: "\n[").count - 1
+    }
+
     func ask(_ text: String) async {
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty, !isThinking else { return }
+        guard hasConsented else {
+            needsConsent = true
+            return
+        }
         guard let key = Keychain.get(Keychain.deepSeekKey), !key.isEmpty else {
             chatError = "先在设置里填 API Key"
             return
@@ -258,7 +308,8 @@ final class Store: ObservableObject {
 
         do {
             let reply = try await DeepSeekClient(apiKey: key).chat(messages)
-            chatLog.append((role: "assistant", text: reply.text))
+            let safe = Self.filtered(reply.text) ?? "（这条回复被拦截了，可以点举报把问题发给我）"
+            chatLog.append((role: "assistant", text: safe))
             if reply.tokens > 0 { applyTokenDelta(reply.tokens) }
         } catch {
             chatError = error.localizedDescription

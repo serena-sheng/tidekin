@@ -48,6 +48,15 @@ struct SettingsView: View {
 
                 Divider()
 
+                section("隐私")
+                Text("对话会发给你配置的第三方服务；步数只在本机换算。")
+                    .font(.system(size: 10))
+                    .foregroundStyle(Theme.ink.opacity(0.5))
+                    .fixedSize(horizontal: false, vertical: true)
+                Text("举报记录 \(store.reportCount) 条")
+                    .font(.system(size: 10, design: .monospaced))
+                    .foregroundStyle(Theme.ink.opacity(0.4))
+
                 section("模型服务")
                 SecureField("API Key", text: $apiKey)
                     .font(.system(size: 10, design: .monospaced))
