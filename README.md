@@ -1,36 +1,50 @@
-# Tidekin（潮线）
+# Tidekin · 潮线
 
-watchOS 独立 app：一只与你**真实 AI 用量**绑定的鲸。你消耗的 token 就是它长大的水。
+一只住在 Apple Watch 里的鲸。它不吃虚拟饲料，吃的是你真实的三样东西：**时间、步数、和你在表上跟它说话时消耗的 token**。
 
-## 世界观
+watchOS 独立 app，SwiftUI，无账号、无广告、无内购、无遥测。
 
-原创 IP「潮线 Whale Line」，12 个形态：
+![三屏](docs/screenshots/preview_3up.png)
+
+---
+
+## 它和普通电子宠物哪里不一样
+
+普通电子宠物按现实时间掉心，漏看一次就记一笔；而 AI 账单里的 token 只是一串数字，和你没有关系。Tidekin 把这两件事接上：
+
+| 驱动线 | 输入 | 影响 |
+|---|---|---|
+| 时间 | 真实清醒分钟 | 饥饿、力量衰减、便便、睡眠、失误窗口 |
+| 健康 | HealthKit 当日步数 | 每 100 步折 1 分钟成长，另按比例补力量心 |
+| Token | **只统计本 app 内对话**的用量 | 300 token 折 1 分钟成长；累计超 6000 转入「潜渊」线 |
+
+三条线折算成「驱动分钟」，加权后推进进化。权重可单独关闭（`time=1` 其余为 0 时等于经典电子宠物）。
+
+## 12 个原创形态
 
 ```
 TIDESEED 潮种 → SPUME 沫沫 → CALF 鲸苗
-   → CETAL 汐仔 / MAEL 涡仔（照顾得好不好）
-   → CURRENT 游潮 / BREACHER 跃潮 / ABYSS 潜渊 / DRIFT 漂雾（三线分化）
-   → SIREN 歌潮 / KRAKEN 沧主 / KUN 鲲（完全体）
+   → CETAL 汐仔 / MAEL 涡仔            照顾得好不好
+   → CURRENT 游潮 / BREACHER 跃潮
+     / ABYSS 潜渊 / DRIFT 漂雾          三线分化
+   → SIREN 歌潮 / KRAKEN 沧主 / KUN 鲲   完全体
 ```
 
-**三条线决定它长成什么**：
-- 时间 → 掉心、便便、睡眠、失误窗口
-- HealthKit 步数 → 力量心、训练
-- 手表内对话消耗的 token → 努力值，且累计超过阈值会转入「潜渊」线
+成人分化看三样：失养 → 漂雾，训练 ≥32 → 跃潮，token ≥6000 → 潜渊，否则游潮。完全体门槛是 15 战 + 胜率 40%，潜渊与漂雾殊途同归，最后都沉成鲲。
 
-完全体门槛是 15 战 + 胜率 40%。潜渊与漂雾殊途同归，最后都沉成鲲。
+![12 形态](docs/screenshots/12forms.png)
 
-设计规格见 `docs/specs/ip-whale-line.md`。
+## 关键设计决定
 
-## 关于 IP
+**watchOS 没有常驻计时器。** app 一挂起代码就停，所以世界用「时间快照 + 懒结算」：存 `lastResolvedAt`，下次进前台按 elapsed 批量补算。内核是纯函数 `resolve(world, now) -> (World, [Event])`，幂等，且不读系统时间（时间一律从参数传入），因此 5 天可以压成 1 秒做测试。
 
-角色、阶段、进化条件、对手全部原创；精灵是自绘 32×32 像素画（`Art/build_whale_*.py` 可重生成）。
+**历史必须可读。** 批量补算带来一个副作用：如果事件时间戳统一写成"结算那一刻"，日志会变成「孵化了/拉屎了/饿了」全挤在同一秒。所以事件带自己的发生时刻（`TimedEvent`），离线摘要才有意义。
 
-- 不包含任何 AI 厂商商标或角色设计
-- 原型参考只取「思想层」：鲸 + 蓝白 + AI 提示符语汇 + 萌系比例
-- 第三方 AI 对话为可选中性集成，不在 UI 露出品牌
+**Liquid Glass 只在控制层。** 按 HIG，内容层用标准材质与亮度分层；屏上的强调绿只出现在三处——需求高亮、当前动作、计量条点亮段。
 
-## 跑起来
+## 构建
+
+需要 Xcode 26+（工程用 objectVersion 77 与 `PBXFileSystemSynchronizedRootGroup`）。
 
 ```bash
 xcodebuild -scheme DigimonWatch -configuration Debug \
@@ -40,96 +54,81 @@ xcodebuild -scheme DigimonWatch -configuration Debug \
 D=$(xcrun simctl list devices available | grep "Apple Watch Series 12 (46mm)" | grep -oE '[0-9A-F-]{36}')
 xcrun simctl boot $D
 xcrun simctl install $D build/Build/Products/Debug-watchsimulator/DigimonWatch.app
-xcrun simctl launch $D com.serena.digimonwatch
+xcrun simctl launch $D com.serena.tidekin
 ```
 
-## 内核自测（不需要手表）
+调试开关（launch argument）：
+
+| 参数 | 作用 |
+|---|---|
+| `-debugAwake YES` | 忽略睡眠时段 |
+| `-debugPage N` | 直接打开第 N 页 |
+| `-debugBattle YES` | 直接进战斗 |
+| `-debugNewGame YES` | 重置为新蛋 |
+
+## 内核测试（不需要手表）
 
 ```bash
 ./Tests/run.sh
 ```
 
-16 项断言覆盖：孵化、阶段推进、失误产生、进化后计数清零、结算幂等、睡眠暂停计时、0 失误 → AGUMON、训练 ≥32 → GREYMON、Perfect 需战斗积累。
+31 项断言：孵化、阶段推进、失误、进化后计数清零、结算幂等、睡眠暂停计时、高频刷新不加速世界、三线驱动、成人四分支、完全体映射。编译 Core 纯值类型，不依赖 XCTest。
 
-## 结构
+## 目录
 
 ```
 DigimonWatch/
-  Core/           纯值类型，无 UI 依赖，可脱离 Xcode 单测
-    Tuning.swift     ← 所有玩法数值。改玩法先改这里
-    World.swift      状态
-    Simulator.swift  时间结算内核（逐分钟推进，睡眠暂停）
-    Evolution.swift  Ver.1 进化表
-    Persistence.swift 单 JSON，落在 App Group 容器
+  Core/                    纯值类型，无 UI 依赖
+    Tuning.swift           所有玩法数值（改玩法先改这里）
+    World.swift            状态 + 角色表（换 IP 只改这张表）
+    Simulator.swift        时间结算内核
+    Evolution.swift        潮线进化判定
+    Battle.swift           对手池与回合结算
+    Schedule.swift         下一个关键事件（供通知/表盘用）
+    Notifier.swift         本地通知，单条滚动续排
+    Persistence.swift      JSON → App Group 容器
+    Drivers/               HealthKit 步数、对话客户端、Keychain
   UI/
-    RootView.swift   主屏 + Crown 选择 + 详情页
-    LCDView.swift    16×16 点阵屏（Canvas）+ 心形条
-    Sprites.swift    字符画精灵
-    Theme.swift      色阶
+    RootView.swift         两页 + 记录 sheet
+    LCDView.swift          32×32 精灵、眨眼、孵化脉动
+    BattleView.swift       Crown 蓄力战斗
+    ChatView.swift         对话 + 举报入口
+    ConsentView.swift      对话前告知
+    StatusScreens.swift    GONE 死亡屏、离线摘要
+    Theme.swift            色阶 + 版式栅格
+    SpriteStore.swift      资源加载、32/16 回落、居中
+  Resources/Sprites/       12 组 × (32.png, 32_b.png)
+  PrivacyInfo.xcprivacy
+DigimonWidget/             表盘小组件（三种槽位）
+Art/                       像素画生成脚本（可重跑）
+Tests/                     内核断言
+docs/specs/                IP 与玩法规格
 ```
 
-## 三条设计铁律
+## 美术
 
-1. **Core 不知道"现在几点"**：所有时间由参数传入，所以 5 天可以压成 1 秒来测。
-2. **Tick 幂等**：同一 `now` 调两次结果一致（已验证）。
-3. **跨时段的变化必须产生 SimEvent**，UI 才能解释"你不在时发生了什么"。
+全部自绘。`Art/build_whale_a.py` / `build_whale_b.py` 是可重复运行的生成脚本（Pillow，无外部素材），跑完用 `Art/polish32.py` 清噪点。
 
-## 三线驱动
+设计约束：32×32、1px 暗轮廓、左上 45° 光源、每种材质 2–3 级色阶、不用抗锯齿、不用抖动。贯穿全弧线的识别元素是**白腹 + 额头青色光标纹 + 蓝白配色**。
 
-进化进度不是"分钟"，而是**驱动分钟**：三个源各自折算后加权求和。
+```bash
+python3 Art/build_whale_a.py && python3 Art/build_whale_b.py && python3 Art/polish32.py
+```
 
-| 线 | 输入 | 折算 | 除了进度还影响 |
-|---|---|---|---|
-| 时间 | 真实清醒分钟 | 1 分钟 = 1 驱动分钟 | 饥饿、力量衰减、便便、睡眠、失误窗口 |
-| 健康 | HealthKit 当日步数增量 | 100 步 = 1 驱动分钟 | 每 30 驱动分钟补 1 颗力量心 |
-| Token | 手表内对话的 `usage.total_tokens` | 300 token = 1 驱动分钟 | 每 40 驱动分钟补 0.05 努力值 |
+## 已知限制
 
-权重在 `Tuning.weights`，`time=1, health=0, token=0` 时与经典复刻完全一致。蛋的孵化固定按真实时间走，不受权重影响——关掉时间线是为了不让时间推动进化，不是为了永远孵不出来。
+- **真机未验证**：Crown 翻页手感、表盘组件注册、Always-On 下的脉动，只在模拟器跑过
+- **对话需要自填 API Key**：存在 Keychain，不上传；没填时 TALK 会提示
+- **token 只统计本 app 内对话**：读不到你在别处的用量，产品描述里写明了这一点
+- **输出过滤是最低限度的关键词拦截**，不是内容审核系统
 
-**为什么不让三线都加到同一个进度里**：那样健康线和 token 线只是加速器，时间线照样推着宠物走，等于没做。所以每条线还各自驱动不同的属性：健康补力量、token 补努力。
+## 设计文档
 
-### Token 数据从哪来
+- [`docs/specs/ip-whale-line.md`](docs/specs/ip-whale-line.md) —— 12 形态的命名、视觉处方、进化映射
+- [`docs/store-copy.md`](docs/store-copy.md) —— 商店文案、关键词、分级建议
 
-**只统计手表内的对话消耗**，不接任何外部端点。
+## 许可
 
-- 单次问答约 300–600 token，换算 300 token = 1 驱动分钟，也就是「聊一次约长 1–2 分钟」
-- 每天计入上限 `Tuning.dailyTokenCap = 20000`，超出不计——否则反复刷对话就能把进化硬刷出来，养成节奏就废了
-- 额度按本地日期重置（`tokenDay` / `tokenDayUsed`）
+代码 MIT。像素美术与角色设定同样以 MIT 发布。
 
-DeepSeek 官方只有 `GET /user/balance` 查余额，没有 token 用量查询接口，所以外部用量本来就拿不到；限定在 app 内反而让账本是精确的。
-
-### 对话
-
-`Core/Drivers/DeepSeekClient.swift`，模型 `deepseek-flash`。`persona(for:)` 把世界状态（阶段、饥饿、力量、心情、便便、伤势）拼成 system prompt，所以它会照着当前状态说话。只带最近 6 轮上下文。
-
-Key 存 Keychain（不是 UserDefaults，手表会同步到 iCloud）。
-
-## 美术资源
-
-**15 张精灵全部自绘**，不含任何官方像素。源码在 `Art/build.py`（字符矩阵 + 统一调色板 + 行宽校验），跑 `python3 Art/build.py` 重新生成到 `Resources/Sprites/`。
-
-风格参照 Digital Monster Color 的 16×16 彩色语言：1px 暗轮廓、左上 45° 光源、每种材质独立 3 级色阶、不用抗锯齿、不用抖动。颜色系沿用（黄/橙/绿/蓝/紫黑），造型原创。
-
-规范见 vault 的 `16x16数码兽像素规范`。
-
-### 已知不足
-
-造型的可识别性还没到位。16×16 上表达"生物结构"靠两件事，目前只做到一半：
-
-- ✅ 每个部件有亮/暗面
-- ❌ **部件之间的深缝**（官方用近黑色分隔头/身/四肢，是唯一能表达结构的手段）
-- ❌ **剪影的突出物**（角、耳、爪、尾——没有这些就只是一个色块）
-
-Agumon 和 Greymon 的剪影还不够"恐龙"，需要再迭代 2–3 轮。
-
-## 通知
-
-`Core/Schedule.swift` 前向预测"下一个值得叫醒你的时刻"（饥饿归零 / 力量归零 / 进化 / 孵化），`Core/Notifier.swift` 据此只保留**一条**待发通知，每次结算后重排——watchOS 待发配额紧张，不能一次排满。
-
-重排有 5 分钟节流；喂食、训练、新建之后强制重排，否则提醒还指向旧状态。
-
-## 尚未实现（按优先级）
-
-1. **战斗**：Ver.1 的 Perfect 阶段要求 `battles ≥ 15 且胜率 ≥ 40%`，判定已写好，但没有战斗界面与命中率模型。
-3. **Complication**：App Group 容器已就位，缺 WidgetKit extension。
-4. **音效 / 触感细化**：只有 click 一种反馈。
+角色、阶段、进化条件、对手池均为原创；不含任何 AI 厂商商标或第三方角色设计。原型只取思想层：鲸 + 蓝白 + AI 提示符语汇 + 萌系比例。
