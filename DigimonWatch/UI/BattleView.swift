@@ -101,8 +101,13 @@ struct BattleView: View {
                 .foregroundStyle(b.won == true ? Theme.lcd : Theme.danger)
             ForEach(Array(b.lines.suffix(2).enumerated()), id: \.offset) { _, line in
                 Text(line)
-                    .font(.system(size: 8, design: .monospaced))
-                    .foregroundStyle(Theme.ink.opacity(0.5))
+                    .font(.system(size: 10, design: .monospaced))
+                    .foregroundStyle(Theme.ink.opacity(0.6))
+            }
+            if b.won != true, store.world.injured > 0 {
+                Text("HURT — TAP THE PET")
+                    .font(.system(size: 10, weight: .medium, design: .monospaced))
+                    .foregroundStyle(Theme.warn)
             }
         }
     }

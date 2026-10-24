@@ -82,16 +82,25 @@ struct CompanionPage: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            Text(store.world.headline)
-                .font(.system(size: 12, weight: .medium, design: .monospaced))
-                .foregroundStyle(headlineColor)
-                .lineLimit(1)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .animation(.easeOut(duration: 0.18), value: store.world.headline)
+            HStack(spacing: 6) {
+                Text(store.world.headline)
+                    .font(.system(size: 12, weight: .medium, design: .monospaced))
+                    .foregroundStyle(headlineColor)
+                    .lineLimit(1)
+                    .animation(.easeOut(duration: 0.18), value: store.world.headline)
 
-            LCDView(world: store.world, spriteMax: 112)
+                if let demand = store.demandIndex, !(0...2).contains(demand) {
+                    Text("· TAP THE PET")
+                        .font(.system(size: 10, weight: .medium, design: .monospaced))
+                        .foregroundStyle(Theme.ink.opacity(0.5))
+                        .lineLimit(1)
+                }
+                Spacer(minLength: 0)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+
+            LCDView(world: store.world, spriteMax: 140)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .padding(.vertical, 8)
                 .contentShape(Rectangle())
                 .onTapGesture { store.tapCreature() }
 
@@ -272,11 +281,13 @@ struct StatusPage: View {
         return Button {
             store.perform(action.rawValue)
         } label: {
-            HStack(spacing: 5) {
+            VStack(spacing: 2) {
                 Image(systemName: action.symbol)
                     .font(.system(size: 15, weight: .medium))
                 Text(action.label)
                     .font(.system(size: 12, weight: .medium, design: .monospaced))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.8)
             }
             .foregroundStyle(demanded ? Theme.lcd
                              : disabled ? Theme.ink.opacity(0.28)
