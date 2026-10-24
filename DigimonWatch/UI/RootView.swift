@@ -240,13 +240,13 @@ struct StatusPage: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .padding(.horizontal, Grid.margin)
-        .padding(.top, 12)
+        .padding(.top, 2)
     }
 
     private var stageLine: String {
         if store.world.stage == .egg { return "DIGIEGG" }
         let h = String(format: "%.0f", store.world.ageHours)
-        return "\(store.world.stage.display) · \(h)h · \(store.world.weight)g"
+        return "\(store.world.stage.display) · \(h)h"
     }
 
     private var header: some View {

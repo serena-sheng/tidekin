@@ -32,13 +32,13 @@ struct PetProvider: TimelineProvider {
     }
 }
 
-struct DigimonComplication: Widget {
+struct TidekinComplication: Widget {
     var body: some WidgetConfiguration {
-        StaticConfiguration(kind: "DigimonComplication", provider: PetProvider()) { entry in
+        StaticConfiguration(kind: "TidekinComplication", provider: PetProvider()) { entry in
             ComplicationView(entry: entry)
                 .containerBackground(.black, for: .widget)
         }
-        .configurationDisplayName("Digimon")
+        .configurationDisplayName("Tidekin")
         .description("它现在要不要你、还剩多久。")
         .supportedFamilies([.accessoryCircular, .accessoryRectangular, .accessoryInline])
     }
@@ -103,7 +103,7 @@ struct ComplicationView: View {
                         .lineLimit(1)
                 }
             } else {
-                Text("DIGIMON")
+                Text("TIDEKIN")
                     .font(.system(size: 13, weight: .semibold, design: .monospaced))
                 Text("open the app")
                     .font(.system(size: 10, design: .monospaced))
@@ -116,7 +116,7 @@ struct ComplicationView: View {
     // MARK: -
 
     private var inlineText: String {
-        guard let world else { return "Digimon" }
+        guard let world else { return "Tidekin" }
         if world.isDead { return "GONE" }
         return "\(world.species) · \(headline(world))"
     }
@@ -162,8 +162,8 @@ struct ComplicationView: View {
 }
 
 @main
-struct DigimonWidgetBundle: WidgetBundle {
+struct TidekinWidgetBundle: WidgetBundle {
     var body: some Widget {
-        DigimonComplication()
+        TidekinComplication()
     }
 }

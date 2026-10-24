@@ -25,10 +25,11 @@ struct BattleView: View {
                     footer(b)
                 }
                 .padding(.horizontal, 8)
-                .padding(.top, 12)
+                .padding(.top, 40)
                 .padding(.bottom, 4)
             }
         }
+        .presentationBackground(.black)
         .digitalCrownRotation(
             $charge, from: 0, through: 1, by: 0.05,
             sensitivity: .medium, isContinuous: false, isHapticFeedbackEnabled: true
@@ -115,10 +116,17 @@ struct BattleView: View {
     private func playerRow(_ b: BattleState) -> some View {
         VStack(spacing: 2) {
             bar(value: b.playerHP, max: BattleState.playerHP(for: store.world), color: Theme.lcd)
-            HStack {
+            HStack(spacing: 5) {
+                if let img = SpriteStore.image(for: store.world.species) {
+                    Image(uiImage: img)
+                        .resizable()
+                        .interpolation(.none)
+                        .scaledToFit()
+                        .frame(width: 22, height: 22)
+                }
                 Text(store.world.displayName)
-                    .font(.system(size: 9, weight: .bold, design: .monospaced))
-                    .foregroundStyle(Theme.ink.opacity(0.7))
+                    .font(.system(size: 10, weight: .bold, design: .monospaced))
+                    .foregroundStyle(Theme.ink.opacity(0.75))
                 Spacer()
                 Text("\(b.playerHP)/\(BattleState.playerHP(for: store.world))")
                     .font(.system(size: 8, design: .monospaced))

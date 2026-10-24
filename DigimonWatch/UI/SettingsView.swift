@@ -69,7 +69,7 @@ struct SettingsView: View {
                 Divider()
 
                 // 重生只在 GONE 屏出现，那里有二次确认
-                Text("重生只能在那只数码兽死后进行")
+                Text("重生只能在那只鲸死后进行")
                     .font(.system(size: 8, design: .monospaced))
                     .foregroundStyle(Theme.ink.opacity(0.35))
             }
